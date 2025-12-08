@@ -1,0 +1,31 @@
+# Steps executed by Copilot coding agent to prepare the ephemeral environment.
+# Purpose: pre-install dependencies and make tests run quickly and deterministically.
+
+steps:
+  - name: Setup Python and virtual environment
+    run: |
+      python -m venv .venv
+      source .venv/bin/activate
+      pip install --upgrade pip
+
+  - name: Install repo dependencies if requirements.txt exists
+    run: |
+      if [ -f requirements.txt ]; then
+        pip install -r requirements.txt
+      fi
+
+  - name: Install the package in editable mode (if package exists)
+    run: |
+      if [ -f setup.py ] || [ -f pyproject.toml ]; then
+        pip install -e .
+      fi
+
+  - name: Install test tools
+    run: |
+      pip install pytest
+      pip install black flake8 mypy || true
+
+  - name: Quick smoke test
+    run: |
+      # Run a quick test discovery to ensure tests can be collected
+      pytest -q --maxfail=1 || true
