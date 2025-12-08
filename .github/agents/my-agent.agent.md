@@ -46,10 +46,10 @@ custom_components/torque_obd/
 
 ### PID Naming Convention
 Torque uses specific naming patterns for OBD-II Parameter IDs (PIDs):
-- **Standard OBD-II**: `k` + hex digit(s) (e.g., `kd` = Vehicle Speed [d=13=0x0D], `kc` = Engine RPM [c=12=0x0C])
+- **Standard OBD-II**: `k` + hex digit(s) (e.g., `kd` = Vehicle Speed [hex D = decimal 13], `kc` = Engine RPM [hex C = decimal 12])
 - **Torque Custom**: `kff` + number (e.g., `kff1001` = GPS Latitude, `kff1238` = Battery Voltage)
 
-Note: The letter after 'k' is hexadecimal (a-f = 10-15, 10 = 16, etc.)
+Note: The letter(s) after 'k' use hexadecimal notation where a-f represent decimal values 10-15, and hex 10 = decimal 16.
 
 ### Sensor Naming Priority
 1. **Torque Payload Names** (highest priority): `userFullName{PID}` or `userShortName{PID}` from Torque
