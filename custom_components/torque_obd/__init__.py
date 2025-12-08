@@ -20,6 +20,9 @@ PLATFORMS = [Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+# Standard OBD-II PIDs (0x00-0xFF) use 2 hex digits
+STANDARD_PID_HEX_LENGTH = 2
+
 
 def _normalize_pid(pid: str) -> str:
     """Normalize PID format to ensure consistent format with leading zeros.
@@ -56,9 +59,6 @@ def _normalize_pid(pid: str) -> str:
         # If not valid hex, return as-is
         _LOGGER.debug("Invalid hex in PID '%s', returning as-is", pid)
         return pid
-    
-    # Standard OBD-II PIDs (0x00-0xFF) are 2 hex digits
-    STANDARD_PID_HEX_LENGTH = 2
     
     # Only normalize if it's a short standard PID (1-2 hex digits)
     # Extended PIDs (kff*, k22*, etc.) are already in the correct format
@@ -282,23 +282,20 @@ class TorqueView(HomeAssistantView):
                 }
                 _LOGGER.debug("Creating generic sensor for undefined PID '%s' (original: '%s') with name: %s", normalized_key, key, definition["name"])
             
-            # Create the sensor using the ORIGINAL key (not normalized)
-            # This is critical: the incoming data_dict from Torque contains non-normalized
-            # PID keys (e.g., "kd" not "k0d"), so sensors must use the original key to
-            # retrieve their values from the data dictionary.
+            # Use original key for data lookup - data_dict contains non-normalized PIDs from Torque
             sensor = TorqueSensor(
                 self.hass,
                 self.entry_id,
                 entry_data.get("email", ""),
                 entry_data.get("vehicle_name", "Unknown"),
-                key,  # Use original key to match data_dict keys from Torque
+                key,  # Original key (e.g., "kd") matches data_dict keys from Torque
                 definition,
             )
             new_sensors.append(sensor)
-            # Track both original and normalized keys to prevent duplicates
+            # Track both keys to prevent duplicate sensors (e.g., if both "kd" and "k0d" appear)
             added_sensors.add(key)
             added_sensors.add(normalized_key)
-            _LOGGER.debug("Creating new sensor '%s' for PID '%s' (normalized: %s)", definition["name"], key, normalized_key)
+            _LOGGER.debug("Creating new sensor '%s' for PID '%s' (normalized: '%s')", definition["name"], key, normalized_key)
         
         # Add the new sensors if any
         if new_sensors:
