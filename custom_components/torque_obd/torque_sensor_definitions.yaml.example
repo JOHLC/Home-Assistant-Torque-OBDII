@@ -1,0 +1,109 @@
+# Example Custom Sensor Definitions for Torque OBD-II Integration
+# 
+# This file allows you to customize or add sensor definitions for your Torque OBD-II integration.
+# Copy this file to your Home Assistant config directory as "torque_sensor_definitions.yaml"
+# to enable custom sensor definitions.
+#
+# Configuration directory path: /config/torque_sensor_definitions.yaml
+#
+# Each sensor definition consists of:
+# - PID key (e.g., "k5", "kc", "kff1234")
+# - name: Human-readable sensor name
+# - unit: Unit of measurement (optional)
+# - icon: MDI icon name (optional, defaults to "mdi:car-info")
+# - device_class: Home Assistant device class (optional)
+# - state_class: Home Assistant state class (optional)
+#
+# Valid device_class values:
+#   - temperature, voltage, pressure, speed, distance, duration, energy, power, etc.
+#   - See: https://developers.home-assistant.io/docs/core/entity/sensor/#available-device-classes
+#
+# Valid state_class values:
+#   - measurement: For values that can go up or down
+#   - total_increasing: For monotonically increasing values (like trip distance)
+#
+# Standard OBD-II PIDs use "k" prefix followed by hex value:
+# - k4: Engine Load (0x04)
+# - k5: Engine Coolant Temperature (0x05)
+# - kc: Engine RPM (0x0C)
+# - kd: Vehicle Speed (0x0D)
+# - kf: Intake Air Temperature (0x0F)
+# - k10: MAF Air Flow Rate (0x10)
+# - k11: Throttle Position (0x11)
+# - k2f: Fuel Level (0x2F)
+# - k33: Barometric Pressure (0x33)
+# - k46: Ambient Air Temperature (0x46)
+#
+# Torque custom PIDs use "kff" prefix followed by a number:
+# - kff1001: GPS Latitude
+# - kff1002: GPS Longitude
+# - kff1005: GPS Altitude
+# - kff1006: GPS Speed
+# - kff1238: Battery Voltage
+# - kff1266: Trip Distance
+# - etc.
+#
+# Examples:
+
+# Override the default Vehicle Speed sensor with a custom name
+kd:
+  name: "My Car Speed"
+  unit: "km/h"
+  icon: "mdi:speedometer"
+  device_class: null
+  state_class: "measurement"
+
+# Override Engine RPM with different icon
+kc:
+  name: "Engine RPM"
+  unit: "RPM"
+  icon: "mdi:engine-outline"
+  device_class: null
+  state_class: "measurement"
+
+# Add a completely custom sensor for a custom PID
+kff5001:
+  name: "Custom Boost Pressure"
+  unit: "psi"
+  icon: "mdi:gauge"
+  device_class: "pressure"
+  state_class: "measurement"
+
+# Add another custom sensor without device_class
+kff5002:
+  name: "Custom Sensor"
+  unit: "units"
+  icon: "mdi:car-info"
+  device_class: null
+  state_class: "measurement"
+
+# Override fuel level sensor
+k2f:
+  name: "Gas Tank Level"
+  unit: "%"
+  icon: "mdi:gas-station"
+  device_class: null
+  state_class: "measurement"
+
+# Add custom turbo boost sensor (example)
+# kff1234:
+#   name: "Turbo Boost"
+#   unit: "psi"
+#   icon: "mdi:turbocharger"
+#   device_class: "pressure"
+#   state_class: "measurement"
+
+# Add custom oil pressure sensor (example)
+# kff5678:
+#   name: "Oil Pressure"
+#   unit: "psi"
+#   icon: "mdi:oil"
+#   device_class: "pressure"
+#   state_class: "measurement"
+
+# Notes:
+# - The integration will load this file at startup
+# - Custom definitions override default definitions
+# - You can add completely new PIDs not in the default list
+# - Restart Home Assistant after modifying this file
+# - Check logs for any errors loading the file

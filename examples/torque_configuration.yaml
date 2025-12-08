@@ -1,0 +1,95 @@
+# Example Home Assistant Configuration for Torque OBD-II Integration
+# 
+# This integration is configured via the UI, but here's what happens behind the scenes:
+#
+# Configuration via UI:
+# 1. Go to Configuration → Integrations
+# 2. Click "+ ADD INTEGRATION"
+# 3. Search for "Torque OBD-II"
+# 4. Enter your vehicle's name (e.g., "2025 Ford Escape")
+# 5. Enter your vehicle's email identifier (e.g., mycar@example.com)
+#
+# After configuration, the integration will:
+# - Create a unique HTTP endpoint at http://YOUR_HA_IP:8123/api/torque-<vehicle-name>
+#   Example: http://YOUR_HA_IP:8123/api/torque-2025-ford-escape
+# - Create 30+ sensor entities for vehicle parameters
+# - Listen for data from the Torque app
+#
+# Example sensors that will be created:
+# - sensor.2025_ford_escape_vehicle_speed
+# - sensor.2025_ford_escape_engine_rpm
+# - sensor.2025_ford_escape_fuel_level
+# - sensor.2025_ford_escape_engine_coolant_temperature
+# - sensor.2025_ford_escape_battery_voltage
+# - sensor.2025_ford_escape_gps_latitude
+# - sensor.2025_ford_escape_gps_longitude
+# - And many more...
+#
+# Torque App Configuration:
+# Open Torque Pro → Settings → Data Logging & Upload
+# - Web Upload URL: http://YOUR_HA_IP:8123/api/torque-2025-ford-escape
+# - Email Address: mycar@example.com (same as configured in HA)
+# - Enable Logging: ON
+#
+# Multiple Vehicles:
+# Each vehicle gets its own unique endpoint:
+# - 2025 Ford Escape: http://YOUR_HA_IP:8123/api/torque-2025-ford-escape
+# - 2017 Ford Fusion: http://YOUR_HA_IP:8123/api/torque-2017-ford-fusion
+#
+# Example Automation:
+automation:
+  - alias: "Low Fuel Alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.fuel_level
+        below: 15
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "Your car's fuel level is low: {{ states('sensor.fuel_level') }}%"
+          
+  - alias: "Trip Started"
+    trigger:
+      - platform: state
+        entity_id: sensor.vehicle_speed
+        from: "0"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.vehicle_speed
+        above: 5
+    action:
+      - service: logbook.log
+        data:
+          name: "Trip Started"
+          message: "Vehicle trip started at {{ now() }}"
+
+# Example Dashboard Card:
+lovelace:
+  dashboards:
+    torque:
+      mode: yaml
+      title: Vehicle
+      cards:
+        - type: entities
+          title: Vehicle Status
+          entities:
+            - entity: sensor.vehicle_speed
+            - entity: sensor.engine_rpm
+            - entity: sensor.fuel_level
+            - entity: sensor.engine_coolant_temperature
+            - entity: sensor.battery_voltage
+            
+        - type: gauge
+          entity: sensor.fuel_level
+          min: 0
+          max: 100
+          severity:
+            red: 0
+            yellow: 25
+            green: 50
+            
+        - type: map
+          entities:
+            - entity: sensor.gps_latitude
+            - entity: sensor.gps_longitude
+          hours_to_show: 24

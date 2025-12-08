@@ -1,0 +1,12 @@
+{
+  "domain": "torque_obd",
+  "name": "Torque OBD-II",
+  "codeowners": ["@JOHLC"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/JOHLC/Home-Assistant-Torque-OBDII",
+  "issue_tracker": "https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues",
+  "iot_class": "local_push",
+  "requirements": [],
+  "version": "1.0.0"
+}

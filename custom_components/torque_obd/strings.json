@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Torque OBD-II",
+        "description": "Configure your vehicle for Torque OBD-II integration. The vehicle name will be used to create a unique API endpoint.",
+        "data": {
+          "vehicle_name": "Vehicle Name (e.g., 2025 Ford Escape)",
+          "email": "Email Address (optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_vehicle_name": "Invalid vehicle name. Use only letters, numbers, spaces, dashes, and underscores.",
+      "invalid_email": "Invalid email format. Please enter a valid email address.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This vehicle name is already configured."
+    }
+  }
+}

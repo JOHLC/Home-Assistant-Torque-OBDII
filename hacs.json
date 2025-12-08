@@ -1,0 +1,7 @@
+{
+  "name": "Torque OBD-II",
+  "content_in_root": false,
+  "filename": "torque_obd",
+  "render_readme": true,
+  "homeassistant": "2023.1.0"
+}
