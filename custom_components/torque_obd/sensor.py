@@ -23,23 +23,6 @@ from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-def normalize_entity_id_part(text: str) -> str:
-    """Normalize text for use in entity ID.
-    
-    Converts to lowercase, replaces spaces/hyphens with underscores,
-    and removes all non-alphanumeric characters except underscores.
-    
-    Args:
-        text: The text to normalize
-        
-    Returns:
-        Normalized text suitable for entity ID
-    """
-    normalized = text.lower().replace(' ', '_').replace('-', '_')
-    normalized = ''.join(c for c in normalized if c.isalnum() or c == '_')
-    return normalized
-
-
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -96,7 +79,8 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         self._definition = definition
         
         # Set sensor attributes
-        self._attr_name = definition["name"]
+        # Prefix sensor name with vehicle name for proper entity ID generation
+        self._attr_name = f"{vehicle_name} {definition['name']}"
         self._attr_native_unit_of_measurement = definition.get("unit")
         self._attr_icon = definition.get("icon")
         
@@ -108,20 +92,19 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         if definition.get("state_class"):
             self._attr_state_class = definition["state_class"]
         
+        # Set default precision of 2 decimal places for numeric sensors
+        # This can be overridden by users in the UI
+        self._attr_suggested_display_precision = 2
+        
         # Generate unique ID using entry_id for uniqueness
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_{key}"
-        
-        # Generate entity ID with device name prefix
-        normalized_vehicle = normalize_entity_id_part(vehicle_name)
-        normalized_sensor = normalize_entity_id_part(definition["name"])
-        self._attr_entity_id = f"sensor.{normalized_vehicle}_{normalized_sensor}"
         
         # Set initial state
         self._attr_native_value = None
         self._attr_extra_state_attributes = {}
         
-        _LOGGER.debug("Initialized sensor '%s' (PID: %s) for vehicle '%s' with entity_id: %s", 
-                     definition["name"], key, vehicle_name, self._attr_entity_id)
+        _LOGGER.debug("Initialized sensor '%s' (PID: %s) for vehicle '%s'", 
+                     self._attr_name, key, vehicle_name)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -228,12 +211,9 @@ class TorqueAPIEndpointSensor(SensorEntity):
         self._vehicle_name = vehicle_name
         
         # Set sensor attributes
-        self._attr_name = "API Endpoint"
+        # Prefix sensor name with vehicle name for proper entity ID generation
+        self._attr_name = f"{vehicle_name} API Endpoint"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_api_endpoint"
-        
-        # Generate entity ID with device name prefix
-        normalized_vehicle = normalize_entity_id_part(vehicle_name)
-        self._attr_entity_id = f"sensor.{normalized_vehicle}_api_endpoint"
         
         _LOGGER.debug("Initialized API endpoint sensor for vehicle '%s'", vehicle_name)
 

@@ -17,11 +17,19 @@
   - Vehicle Speed: Changed from `k5` to `kd` (OBD-II PID 0x0D)
   - Engine Coolant Temperature: Changed from `k5900` to `k5` (OBD-II PID 0x05)
   - Intake Air Temperature: Changed from `kd` to `kf` (OBD-II PID 0x0F)
+- **Sensor Display Precision**: All numeric sensors now default to 2 decimal places (e.g., 69.41% instead of 69.4117647058823%)
+  - Users can customize precision per sensor in the Home Assistant UI
+  - Applies to all sensors with numeric values
+- **Entity ID Prefixing**: Fixed entity IDs to properly include vehicle name prefix
+  - Entities now appear as `sensor.vehicle_name_sensor_name` instead of `sensor.sensor_name`
+  - Prevents conflicts when using multiple vehicles
+  - Example: `sensor.2025_ford_escape_fuel_level` instead of `sensor.fuel_level`
 
 ### Changed
 - Sensor definitions are now loaded at integration startup
 - Default sensor definitions are merged with user-defined overrides
 - Improved logging for sensor definition loading and merging
+- Sensor names now include vehicle name for proper entity ID generation
 
 ### Backward Compatibility
 - The integration remains fully backward compatible
