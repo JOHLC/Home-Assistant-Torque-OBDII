@@ -27,9 +27,11 @@ def _normalize_pid(pid: str) -> str:
     Torque sends PIDs in different formats:
     - Short format: k5, kb, kc, kd, kf (without leading zeros)
     - Long format: k05, k0b, k0c, k0d, k0f (with leading zeros)
-    - Extended format: k221e1c, k2203ca, etc. (already normalized)
+    - Extended format: k221e1c, k2203ca, etc. (longer than 2 hex digits)
     
     This function normalizes short PIDs to the long format used in const.py.
+    Standard OBD-II PIDs (0x00-0xFF) should always be 2 hex digits.
+    Extended PIDs with more than 2 hex digits remain unchanged.
     
     Args:
         pid: The PID string from Torque (e.g., "k5" or "k05")
@@ -37,7 +39,7 @@ def _normalize_pid(pid: str) -> str:
     Returns:
         Normalized PID with leading zeros. Examples:
         - k5 -> k05 (short format normalized)
-        - k0d -> k0d (already normalized)
+        - k0d -> k0d (long format unchanged)
         - k221e1c -> k221e1c (extended format unchanged)
     """
     if not pid.startswith("k"):
@@ -55,12 +57,14 @@ def _normalize_pid(pid: str) -> str:
         _LOGGER.debug("Invalid hex in PID '%s', returning as-is", pid)
         return pid
     
+    # Standard OBD-II PIDs (0x00-0xFF) are 2 hex digits
+    STANDARD_PID_HEX_LENGTH = 2
+    
     # Only normalize if it's a short standard PID (1-2 hex digits)
     # Extended PIDs (kff*, k22*, etc.) are already in the correct format
-    if len(hex_part) <= 2:
-        # Pad with leading zero if needed for standard OBD-II PIDs (0x00-0xFF)
-        # Standard PIDs should always be 2 hex digits
-        hex_part = hex_part.zfill(2)
+    if len(hex_part) <= STANDARD_PID_HEX_LENGTH:
+        # Pad with leading zero if needed for standard OBD-II PIDs
+        hex_part = hex_part.zfill(STANDARD_PID_HEX_LENGTH)
     
     return f"k{hex_part}"
 
@@ -266,7 +270,7 @@ class TorqueView(HomeAssistantView):
                 # Override name if we got one from payload
                 if sensor_name:
                     definition["name"] = sensor_name
-                    _LOGGER.debug("Using name from payload for PID '%s': %s", normalized_key, sensor_name)
+                    _LOGGER.debug("Using name from payload for PID '%s' (original: '%s'): %s", normalized_key, key, sensor_name)
             else:
                 # Create a generic definition for undefined PIDs
                 definition = {
@@ -276,7 +280,7 @@ class TorqueView(HomeAssistantView):
                     "device_class": None,
                     "state_class": None,
                 }
-                _LOGGER.debug("Creating generic sensor for undefined PID: %s (normalized: %s) with name: %s", key, normalized_key, definition["name"])
+                _LOGGER.debug("Creating generic sensor for undefined PID '%s' (original: '%s') with name: %s", normalized_key, key, definition["name"])
             
             # Create the sensor using the ORIGINAL key (not normalized)
             # This is critical: the incoming data_dict from Torque contains non-normalized
