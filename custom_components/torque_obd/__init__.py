@@ -43,6 +43,14 @@ def _normalize_pid(pid: str) -> str:
     # Extract the hex part after 'k'
     hex_part = pid[1:]
     
+    # Validate hex part (optional but good practice)
+    try:
+        int(hex_part, 16)  # Validate it's valid hexadecimal
+    except ValueError:
+        # If not valid hex, return as-is
+        _LOGGER.debug("Invalid hex in PID '%s', returning as-is", pid)
+        return pid
+    
     # Only normalize if it's a short standard PID (1-2 hex digits)
     # Extended PIDs (kff*, k22*, etc.) are already in the correct format
     if len(hex_part) <= 2:
@@ -267,13 +275,15 @@ class TorqueView(HomeAssistantView):
                 _LOGGER.info("Creating generic sensor for undefined PID: %s (normalized: %s) with name: %s", key, normalized_key, definition["name"])
             
             # Create the sensor using the ORIGINAL key (not normalized)
-            # This is important so the sensor can still find its data in the data_dict
+            # This is critical: the incoming data_dict from Torque contains non-normalized
+            # PID keys (e.g., "kd" not "k0d"), so sensors must use the original key to
+            # retrieve their values from the data dictionary.
             sensor = TorqueSensor(
                 self.hass,
                 self.entry_id,
                 entry_data.get("email", ""),
                 entry_data.get("vehicle_name", "Unknown"),
-                key,  # Use original key for data lookup
+                key,  # Use original key to match data_dict keys from Torque
                 definition,
             )
             new_sensors.append(sensor)
