@@ -135,25 +135,31 @@ class TorqueView(HomeAssistantView):
             if key.startswith("userFullName"):
                 # Extract PID from userFullNameXXXX
                 pid = key[12:]  # Remove "userFullName" prefix
-                if pid and "k" + pid not in sensor_names:
-                    sensor_names["k" + pid] = {
-                        "full_name": value,
-                        "short_name": None
-                    }
-                    _LOGGER.debug("Stored full name for PID k%s: %s", pid, value)
-                elif pid:
-                    sensor_names["k" + pid]["full_name"] = value
+                # Handle arrays (take first element) or strings
+                name_value = value[0] if isinstance(value, list) and value else value
+                if pid and name_value:
+                    if "k" + pid not in sensor_names:
+                        sensor_names["k" + pid] = {
+                            "full_name": name_value,
+                            "short_name": None
+                        }
+                    else:
+                        sensor_names["k" + pid]["full_name"] = name_value
+                    _LOGGER.debug("Stored full name for PID k%s: %s", pid, name_value)
             elif key.startswith("userShortName"):
                 # Extract PID from userShortNameXXXX
                 pid = key[13:]  # Remove "userShortName" prefix
-                if pid and "k" + pid not in sensor_names:
-                    sensor_names["k" + pid] = {
-                        "full_name": None,
-                        "short_name": value
-                    }
-                    _LOGGER.debug("Stored short name for PID k%s: %s", pid, value)
-                elif pid:
-                    sensor_names["k" + pid]["short_name"] = value
+                # Handle arrays (take first element) or strings
+                name_value = value[0] if isinstance(value, list) and value else value
+                if pid and name_value:
+                    if "k" + pid not in sensor_names:
+                        sensor_names["k" + pid] = {
+                            "full_name": None,
+                            "short_name": name_value
+                        }
+                    else:
+                        sensor_names["k" + pid]["short_name"] = name_value
+                    _LOGGER.debug("Stored short name for PID k%s: %s", pid, name_value)
         
         new_sensors = []
         
