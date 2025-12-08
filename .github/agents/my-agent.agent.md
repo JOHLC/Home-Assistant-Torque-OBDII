@@ -46,8 +46,10 @@ custom_components/torque_obd/
 
 ### PID Naming Convention
 Torque uses specific naming patterns for OBD-II Parameter IDs (PIDs):
-- **Standard OBD-II**: `k` + hex value (e.g., `kd` = Vehicle Speed at 0x0D, `kc` = Engine RPM at 0x0C)
+- **Standard OBD-II**: `k` + hex digit(s) (e.g., `kd` = Vehicle Speed [d=13=0x0D], `kc` = Engine RPM [c=12=0x0C])
 - **Torque Custom**: `kff` + number (e.g., `kff1001` = GPS Latitude, `kff1238` = Battery Voltage)
+
+Note: The letter after 'k' is hexadecimal (a-f = 10-15, 10 = 16, etc.)
 
 ### Sensor Naming Priority
 1. **Torque Payload Names** (highest priority): `userFullName{PID}` or `userShortName{PID}` from Torque
@@ -117,8 +119,8 @@ Certain fields should NOT create sensors:
 ### Security Considerations
 - **No Authentication**: Endpoints are unauthenticated by design (Torque limitation)
 - **Local Network**: Document security risks, recommend local network use only
-- **Input Validation**: Validate vehicle names (alphanumeric + spaces/dashes/underscores)
-- **Email Validation**: Basic format checking for email if provided (though Torque rarely sends it)
+- **Input Validation**: Validate vehicle names (alphanumeric + spaces/dashes/underscores only)
+- **Email Validation**: The config flow implements basic email format validation if provided (though Torque rarely sends email in actual payloads)
 
 ## Common Development Tasks
 
@@ -204,7 +206,7 @@ When making changes, always review:
 ## Helpful Context
 
 ### Home Assistant Versions
-- Target: 2023.1.0+ (specified in manifest.json and hacs.json)
+- Target: 2023.1.0+ (specified in manifest.json)
 - Use modern async patterns
 - Leverage config entry system
 
