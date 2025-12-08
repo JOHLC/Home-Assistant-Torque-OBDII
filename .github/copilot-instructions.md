@@ -3,50 +3,69 @@ This repository: Home-Assistant-Torque-OBDII
 Primary language: Python
 
 Overview
-This repository provides a Home Assistant integration / helper code for reading OBD-II data (Torque). Follow the steps below so the Copilot coding agent can build, test and validate changes.
+This repository provides a Home Assistant custom integration for receiving vehicle data from the Torque Pro Android application via OBD-II. This is a HACS-compatible custom component with no external Python dependencies.
 
-Required environment & setup
-1. Create a virtualenv:
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+Repository Structure
+- custom_components/torque_obd/ - Main integration code
+  - __init__.py - Component initialization and setup
+  - config_flow.py - UI-based configuration flow
+  - sensor.py - Sensor platform implementation
+  - const.py - Constants and PID mappings
+  - manifest.json - Integration metadata
+- tests/ - Example payload data (no automated tests currently)
+- examples/ - Example configurations
+- .github/home-assistant-developer-docs/ - Home Assistant development documentation reference
 
-2. Install dependencies:
-   pip install -r requirements.txt
+Development Environment Setup
+This is a Home Assistant custom component. For development:
 
-3. Install the package (editable mode) if applicable:
-   pip install -e .
+1. Set up Home Assistant development environment (optional for testing):
+   - Install Home Assistant Core: pip install homeassistant
+   - Or use a Home Assistant development container
+   
+2. For code validation:
+   - Install Home Assistant's hassfest validator: pip install homeassistant[validation]
+   - Run validation: python -m homeassistant.scripts.hassfest validate --integration-path custom_components/torque_obd
 
-4. Run tests:
-   pytest -q
-
-Formatting and linters
-- Formatting: black --check .
-- Linting: flake8
-- Type hints: mypy (where typing is used)
-
-Repository structure (high-level)
-- src/ or package/ : Python package code (adjust if repo uses different layout)
-- tests/ : pytest test suite
-- docs/ : (optional) user-facing docs and examples
+3. For linting (if needed):
+   - Install tools: pip install black flake8 pylint
+   - Format code: black custom_components/
+   - Lint: flake8 custom_components/ or pylint custom_components/
 
 Code Standards & Expectations
-- Follow PEP8 and idiomatic Python.
-- Use type annotations for public functions where it improves clarity.
-- Write clear docstrings (Google or NumPy style).
-- Keep functions small and testable. Prefer dependency injection for external resources (e.g. OBD connections).
-- New features must include unit tests covering the main success and failure paths.
-- Changes must pass formatting (black), linting (flake8), and tests.
+- Follow Home Assistant development standards and conventions
+- Use Home Assistant's coding style (based on PEP8)
+- Use type annotations for all function signatures
+- Follow Home Assistant's entity naming conventions
+- Entity IDs should be prefixed with vehicle name
+- All sensor values from Torque are in metric units (°C, km/h, km, L, kPa)
+- Keep functions small and testable
+- Handle missing or invalid data gracefully
+- Log appropriately using Home Assistant's logging facilities
 
-Acceptance criteria for PRs Copilot should produce
-- All new code has unit tests.
-- All tests pass: pytest -q
-- Linting and formatting checks pass.
-- Clear PR title and description summarizing the change + testing notes.
-- If an external API/device is involved, the agent must mock it in tests (no network or hardware calls in CI).
+Integration-Specific Guidelines
+- The integration domain is `torque_obd` (not just `torque`)
+- Each vehicle configuration creates a unique API endpoint: `/api/torque-{vehicle_name}`
+- Data is received via HTTP POST from the Torque app
+- Sensors are created dynamically based on received data
+- Use the PID mappings in const.py for sensor identification
+- Follow Home Assistant's async conventions (use async/await)
+- Use HomeAssistant's aiohttp session for HTTP requests
 
-Notes for the agent
-- Do not commit secrets or credentials.
-- If changes require adding new dependencies, update requirements.txt and document why.
-- If a change affects Home Assistant integration specifics, include an example configuration snippet in the PR description.
+Acceptance Criteria for PRs
+- Code follows Home Assistant conventions
+- manifest.json is valid and up-to-date
+- No breaking changes to existing functionality
+- Clear PR title and description
+- Include example configuration if adding new features
+- Validate with hassfest if modifying integration structure
+- Test manually with Torque app if modifying data handling
 
-If you need me to open a PR with these files added, say "Create PR" and I will prepare and open it.
+Notes for the Agent
+- This integration has no external Python dependencies (requirements: [] in manifest.json)
+- Do not add unnecessary dependencies
+- The integration uses Home Assistant's built-in HTTP capabilities
+- Torque sends data via HTTP POST with form-encoded data
+- Email parameter is optional as Torque doesn't reliably send it
+- Test changes manually with the Torque Pro Android app when possible
+- Reference Home Assistant developer docs in .github/home-assistant-developer-docs/ for integration patterns
