@@ -75,7 +75,7 @@ For example automations and dashboard configurations, see the [example configura
 
 ## Supported Sensors
 
-The integration automatically creates sensors for:
+The integration **dynamically creates sensors** based on data received from Torque:
 
 - **Speed & Motion**: Vehicle speed, GPS speed, trip distance
 - **Engine**: RPM, coolant temperature, oil temperature, intake air temperature
@@ -85,7 +85,11 @@ The integration automatically creates sensors for:
 - **GPS**: Latitude, longitude, altitude, bearing
 - And many more OBD-II parameters
 
-**Note on Units**: Torque Pro sends sensor values in metric units (°C, km/h, km, L, kPa) regardless of app settings. Home Assistant will convert these based on your unit system preferences.
+**Sensor Names**: The integration automatically uses sensor names provided by Torque, giving you accurate, vehicle-specific names for each parameter.
+
+**Entity IDs**: All sensors are prefixed with your vehicle name (e.g., `sensor.2025_ford_escape_fuel_level`) for easy identification.
+
+**Note on Units**: Torque sends sensor values in **metric units only** (°C, km/h, km, L, kPa) regardless of app settings. Home Assistant will convert these based on your unit system preferences.
 
 ## Requirements
 
