@@ -232,6 +232,16 @@ ATTRIBUTE_FIELDS: Final = [
     "v",  # App version
 ]
 
+# Patterns for fields that should not create sensors
+# These are metadata fields from Torque
+METADATA_FIELD_PREFIXES: Final = [
+    "profile",  # Vehicle profile data (profileName, profileFuelType, etc.)
+    "userUnit",  # User-configured units (DO NOT USE - frequently wrong)
+    "defaultUnit",  # Default units (DO NOT USE - frequently wrong)
+    "userShortName",  # Short names for PIDs (used for sensor naming)
+    "userFullName",  # Full names for PIDs (used for sensor naming)
+]
+
 
 def load_sensor_definitions(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
     """Load sensor definitions from YAML file if it exists, merge with defaults.

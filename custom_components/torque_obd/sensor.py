@@ -94,11 +94,23 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         # Generate unique ID using entry_id for uniqueness
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_{key}"
         
+        # Generate entity ID with device name prefix
+        # Normalize device name: lowercase, spaces to underscores, remove special chars
+        normalized_vehicle = vehicle_name.lower().replace(' ', '_').replace('-', '_')
+        normalized_vehicle = ''.join(c for c in normalized_vehicle if c.isalnum() or c == '_')
+        # Normalize sensor name
+        normalized_sensor = definition["name"].lower().replace(' ', '_').replace('-', '_')
+        normalized_sensor = ''.join(c for c in normalized_sensor if c.isalnum() or c == '_')
+        # Remove any parentheses or other special characters
+        normalized_sensor = normalized_sensor.replace('(', '').replace(')', '')
+        self._attr_entity_id = f"sensor.{normalized_vehicle}_{normalized_sensor}"
+        
         # Set initial state
         self._attr_native_value = None
         self._attr_extra_state_attributes = {}
         
-        _LOGGER.debug("Initialized sensor '%s' (PID: %s) for vehicle '%s'", definition["name"], key, vehicle_name)
+        _LOGGER.debug("Initialized sensor '%s' (PID: %s) for vehicle '%s' with entity_id: %s", 
+                     definition["name"], key, vehicle_name, self._attr_entity_id)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -207,6 +219,11 @@ class TorqueAPIEndpointSensor(SensorEntity):
         # Set sensor attributes
         self._attr_name = "API Endpoint"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_api_endpoint"
+        
+        # Generate entity ID with device name prefix
+        normalized_vehicle = vehicle_name.lower().replace(' ', '_').replace('-', '_')
+        normalized_vehicle = ''.join(c for c in normalized_vehicle if c.isalnum() or c == '_')
+        self._attr_entity_id = f"sensor.{normalized_vehicle}_api_endpoint"
         
         _LOGGER.debug("Initialized API endpoint sensor for vehicle '%s'", vehicle_name)
 
