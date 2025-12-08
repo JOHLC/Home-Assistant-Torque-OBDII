@@ -31,12 +31,13 @@ CONF_VEHICLE_NAME: Final = "vehicle_name"
 # Maps Torque parameter names to Home Assistant sensor attributes
 # NOTE: These are FALLBACK definitions. Sensor names should preferably come from
 # Torque payload (userFullName{PID} or userShortName{PID}) when available.
-# Units are in METRIC format as Torque always sends metric values regardless of app settings:
+# Units are in METRIC format as Torque typically sends metric values regardless of app settings:
 # - Temperature: Celsius (°C)
 # - Speed: Kilometers per hour (km/h)
 # - Distance: Kilometers (km)
 # - Volume: Liters (L)
 # - Pressure: Kilopascals (kPa)
+# Note: While Torque usually sends metric values, this may vary by version or configuration.
 SENSOR_DEFINITIONS: Final = {
     # Speed sensors
     "kd": {

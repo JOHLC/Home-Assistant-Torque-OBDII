@@ -21,6 +21,22 @@ PLATFORMS = [Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
+def _extract_name_from_value(value: Any) -> str | None:
+    """Extract name from value, handling arrays and strings.
+    
+    Args:
+        value: The value which may be a string or array of strings
+        
+    Returns:
+        The extracted name, or None if not available
+    """
+    if isinstance(value, list) and value:
+        return value[0]
+    elif isinstance(value, str):
+        return value
+    return None
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Torque OBD-II from a config entry."""
     hass.data.setdefault(DOMAIN, {})
@@ -135,8 +151,7 @@ class TorqueView(HomeAssistantView):
             if key.startswith("userFullName"):
                 # Extract PID from userFullNameXXXX
                 pid = key[12:]  # Remove "userFullName" prefix
-                # Handle arrays (take first element) or strings
-                name_value = value[0] if isinstance(value, list) and value else value
+                name_value = _extract_name_from_value(value)
                 if pid and name_value:
                     if "k" + pid not in sensor_names:
                         sensor_names["k" + pid] = {
@@ -149,8 +164,7 @@ class TorqueView(HomeAssistantView):
             elif key.startswith("userShortName"):
                 # Extract PID from userShortNameXXXX
                 pid = key[13:]  # Remove "userShortName" prefix
-                # Handle arrays (take first element) or strings
-                name_value = value[0] if isinstance(value, list) and value else value
+                name_value = _extract_name_from_value(value)
                 if pid and name_value:
                     if "k" + pid not in sensor_names:
                         sensor_names["k" + pid] = {
