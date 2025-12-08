@@ -108,6 +108,10 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         if definition.get("state_class"):
             self._attr_state_class = definition["state_class"]
         
+        # Set default precision of 2 decimal places for numeric sensors
+        # This can be overridden by users in the UI
+        self._attr_suggested_display_precision = 2
+        
         # Generate unique ID using entry_id for uniqueness
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_{key}"
         
