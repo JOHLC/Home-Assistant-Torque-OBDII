@@ -13,10 +13,24 @@
 - Example sensor definitions file with detailed comments
 
 ### Fixed
-- **Corrected PID Mappings** to match standard OBD-II specifications:
-  - Vehicle Speed: Changed from `k5` to `kd` (OBD-II PID 0x0D)
-  - Engine Coolant Temperature: Changed from `k5900` to `k5` (OBD-II PID 0x05)
-  - Intake Air Temperature: Changed from `kd` to `kf` (OBD-II PID 0x0F)
+- **Corrected PID Mappings** to match standard OBD-II specifications with proper leading zeros:
+  - Fixed single-digit hex PIDs to include leading zero (e.g., `k5` → `k05`, `kc` → `k0c`, `kd` → `k0d`, `kf` → `k0f`)
+  - Corrected GPS sensor mappings to match reference table:
+    - `kff1001`: GPS Latitude → **GPS Speed** (was incorrect)
+    - `kff1005`: GPS Altitude → **GPS Longitude** (was incorrect)
+    - `kff1006`: GPS Speed → **GPS Latitude** (was incorrect)
+    - `kff1010`: GPS Bearing → **GPS Altitude** (was incorrect)
+  - Added 135+ missing standard OBD-II PID definitions from the OBDII reference table
+  - PIDs now correctly map to their OBD-II hex codes: `k{hex}` format
+  - Notable additions: `k1f` (Run time), `k21` (MIL distance), `k31` (Distance since codes cleared), `k3c` (Catalyst temp), `k42` (Control module voltage)
+  - Total PIDs defined increased from ~25 to 143
+
+### ⚠️ Breaking Changes
+- **Entity IDs will change** for sensors using corrected PID keys:
+  - Sensors with old keys (e.g., `k5`, `kc`, `kd`) will be recreated with correct keys (e.g., `k05`, `k0c`, `k0d`)
+  - GPS sensor names corrected to match actual data (e.g., kff1006 is now GPS Latitude, not GPS Speed)
+  - Historical data for these sensors will not automatically migrate
+  - **Recommendation**: Note your current sensor entity IDs before updating if you have automations or dashboards referencing them
 - **Sensor Display Precision**: All numeric sensors now default to 2 decimal places (e.g., 69.41% instead of 69.4117647058823%)
   - Users can customize precision per sensor in the Home Assistant UI
   - Applies to all sensors with numeric values
