@@ -86,20 +86,47 @@ https://your-domain.com/api/torque-2025-ford-escape
 
 ## Sensors
 
-The integration automatically creates sensors for all supported vehicle parameters. Each sensor will update when new data is received from the Torque app.
+The integration **dynamically creates sensors** based on data received from Torque. Sensor names are automatically extracted from the Torque payload when available, providing accurate, vehicle-specific names for each parameter.
 
-**Important Note on Units**: Torque Pro typically sends all sensor values in metric units, regardless of the unit settings in the app. This means:
-- Temperatures are in Celsius (°C)
-- Speeds are in kilometers per hour (km/h)
-- Distances are in kilometers (km)
-- Fuel volumes are in liters (L)
-- Pressures are in kilopascals (kPa)
+### How Sensor Names Work
 
-The integration defines these units in the sensor definitions and Home Assistant will handle any necessary conversions based on your Home Assistant unit system preferences.
+1. **Dynamic Naming**: The integration uses sensor names provided by Torque in the payload (`userFullName{PID}` or `userShortName{PID}`)
+2. **Fallback to Definitions**: If Torque doesn't provide a name, the integration falls back to predefined sensor names
+3. **Generic Naming**: If neither is available, sensors are created with a generic "PID {key}" name
 
-### Custom Sensor Definitions
+This means sensor names will automatically match what you see in the Torque app!
 
-You can customize sensor definitions or add support for custom PIDs by creating a `torque_sensor_definitions.yaml` file in your Home Assistant configuration directory.
+### Entity ID Format
+
+All sensor entity IDs are prefixed with the vehicle name to ensure uniqueness and organization:
+
+**Format**: `sensor.<vehicle_name>_<sensor_name>`
+
+**Examples**:
+- Vehicle: "2025 Ford Escape", Sensor: "Fuel Level" → `sensor.2025_ford_escape_fuel_level`
+- Vehicle: "2025 Ford Escape", Sensor: "Engine RPM" → `sensor.2025_ford_escape_engine_rpm`
+- Vehicle: "2017 Ford Fusion", Sensor: "Coolant Temperature" → `sensor.2017_ford_fusion_coolant_temperature`
+
+This makes it easy to identify which vehicle each sensor belongs to!
+
+**Important Note on Units**: Torque sends sensor values in **metric units only**, regardless of the unit settings displayed in the app. This means:
+- Temperatures are always in Celsius (°C)
+- Speeds are always in kilometers per hour (km/h)
+- Distances are always in kilometers (km)
+- Fuel volumes are always in liters (L)
+- Pressures are always in kilopascals (kPa)
+
+The integration assumes all incoming values are metric and sets the units accordingly. Home Assistant will handle any necessary conversions based on your system's unit preferences.
+
+### Custom Sensor Definitions (Optional)
+
+While the integration now automatically uses sensor names from Torque, you can still customize sensor definitions or override defaults by creating a `torque_sensor_definitions.yaml` file in your Home Assistant configuration directory.
+
+**Note**: With dynamic sensor naming, custom definitions are mainly useful for:
+- Overriding units of measurement
+- Setting custom icons
+- Configuring device classes and state classes
+- Supporting PIDs that Torque doesn't name
 
 #### Creating Custom Sensor Definitions
 
@@ -129,8 +156,8 @@ kff5001:
 
 #### Sensor Definition Fields
 
-- **name** (required): Human-readable name for the sensor
-- **unit** (optional): Unit of measurement (e.g., "km/h", "°C", "RPM", "%")
+- **name** (required): Human-readable name for the sensor (only used if Torque doesn't provide a name)
+- **unit** (optional): Unit of measurement (e.g., "km/h", "°C", "RPM", "%") - should be metric
 - **icon** (optional): Material Design Icon name (e.g., "mdi:speedometer"). Defaults to "mdi:car-info"
 - **device_class** (optional): Home Assistant device class (e.g., "temperature", "voltage", "pressure", null)
 - **state_class** (optional): Home Assistant state class:
@@ -169,11 +196,12 @@ cp custom_components/torque_obd/torque_sensor_definitions.yaml.example /config/t
 
 #### How It Works
 
-1. The integration loads default sensor definitions at startup
+1. The integration loads default sensor definitions at startup (as fallbacks)
 2. If `torque_sensor_definitions.yaml` exists in your config directory, it loads the custom definitions
 3. Custom definitions **override** default definitions for the same PID
 4. New PIDs in the custom file are **added** to the available sensors
-5. Any PIDs received from Torque that aren't in either file will create a generic sensor automatically
+5. **When Torque sends data**: Sensor names from the Torque payload (`userFullName{PID}`) take priority over all definitions
+6. Any PIDs received from Torque that aren't in either file will create a generic sensor automatically
 
 ### Supported Sensors
 

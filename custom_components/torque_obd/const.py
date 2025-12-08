@@ -29,6 +29,15 @@ CONF_VEHICLE_NAME: Final = "vehicle_name"
 
 # Sensor definitions
 # Maps Torque parameter names to Home Assistant sensor attributes
+# NOTE: These are FALLBACK definitions. Sensor names should preferably come from
+# Torque payload (userFullName{PID} or userShortName{PID}) when available.
+# Units are in METRIC format as Torque typically sends metric values regardless of app settings:
+# - Temperature: Celsius (°C)
+# - Speed: Kilometers per hour (km/h)
+# - Distance: Kilometers (km)
+# - Volume: Liters (L)
+# - Pressure: Kilopascals (kPa)
+# Note: While Torque usually sends metric values, this may vary by version or configuration.
 SENSOR_DEFINITIONS: Final = {
     # Speed sensors
     "kd": {
@@ -230,6 +239,16 @@ ATTRIBUTE_FIELDS: Final = [
     "session",  # Session ID
     "id",  # Device ID
     "v",  # App version
+]
+
+# Patterns for fields that should not create sensors
+# These are metadata fields from Torque
+METADATA_FIELD_PREFIXES: Final = [
+    "profile",  # Vehicle profile data (profileName, profileFuelType, etc.)
+    "userUnit",  # User-configured units (DO NOT USE - frequently wrong)
+    "defaultUnit",  # Default units (DO NOT USE - frequently wrong)
+    "userShortName",  # Short names for PIDs (used for sensor naming)
+    "userFullName",  # Full names for PIDs (used for sensor naming)
 ]
 
 

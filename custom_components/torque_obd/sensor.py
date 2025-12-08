@@ -23,6 +23,23 @@ from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def normalize_entity_id_part(text: str) -> str:
+    """Normalize text for use in entity ID.
+    
+    Converts to lowercase, replaces spaces/hyphens with underscores,
+    and removes all non-alphanumeric characters except underscores.
+    
+    Args:
+        text: The text to normalize
+        
+    Returns:
+        Normalized text suitable for entity ID
+    """
+    normalized = text.lower().replace(' ', '_').replace('-', '_')
+    normalized = ''.join(c for c in normalized if c.isalnum() or c == '_')
+    return normalized
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -94,11 +111,17 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         # Generate unique ID using entry_id for uniqueness
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_{key}"
         
+        # Generate entity ID with device name prefix
+        normalized_vehicle = normalize_entity_id_part(vehicle_name)
+        normalized_sensor = normalize_entity_id_part(definition["name"])
+        self._attr_entity_id = f"sensor.{normalized_vehicle}_{normalized_sensor}"
+        
         # Set initial state
         self._attr_native_value = None
         self._attr_extra_state_attributes = {}
         
-        _LOGGER.debug("Initialized sensor '%s' (PID: %s) for vehicle '%s'", definition["name"], key, vehicle_name)
+        _LOGGER.debug("Initialized sensor '%s' (PID: %s) for vehicle '%s' with entity_id: %s", 
+                     definition["name"], key, vehicle_name, self._attr_entity_id)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -207,6 +230,10 @@ class TorqueAPIEndpointSensor(SensorEntity):
         # Set sensor attributes
         self._attr_name = "API Endpoint"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_api_endpoint"
+        
+        # Generate entity ID with device name prefix
+        normalized_vehicle = normalize_entity_id_part(vehicle_name)
+        self._attr_entity_id = f"sensor.{normalized_vehicle}_api_endpoint"
         
         _LOGGER.debug("Initialized API endpoint sensor for vehicle '%s'", vehicle_name)
 

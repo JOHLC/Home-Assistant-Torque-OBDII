@@ -12,13 +12,29 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN, ATTRIBUTE_FIELDS, load_sensor_definitions
+from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN, ATTRIBUTE_FIELDS, METADATA_FIELD_PREFIXES, load_sensor_definitions
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+def _extract_name_from_value(value: Any) -> str | None:
+    """Extract name from value, handling arrays and strings.
+    
+    Args:
+        value: The value which may be a string or array of strings
+        
+    Returns:
+        The extracted name, or None if not available
+    """
+    if isinstance(value, list) and value:
+        return value[0]
+    elif isinstance(value, str):
+        return value
+    return None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -124,27 +140,92 @@ class TorqueView(HomeAssistantView):
         # Get sensor definitions (loaded at setup time)
         sensor_definitions = self.hass.data[DOMAIN].get("sensor_definitions", {})
         
+        # Initialize sensor names storage if not exists
+        if "sensor_names" not in entry_data:
+            entry_data["sensor_names"] = {}
+        sensor_names = entry_data["sensor_names"]
+        
+        # First pass: Extract and store sensor names from payload
+        # userFullName{PID} and userShortName{PID} come before k{PID} values
+        for key, value in data_dict.items():
+            if key.startswith("userFullName"):
+                # Extract PID from userFullNameXXXX
+                pid = key[12:]  # Remove "userFullName" prefix
+                name_value = _extract_name_from_value(value)
+                if pid and name_value:
+                    if "k" + pid not in sensor_names:
+                        sensor_names["k" + pid] = {
+                            "full_name": name_value,
+                            "short_name": None
+                        }
+                    else:
+                        sensor_names["k" + pid]["full_name"] = name_value
+                    _LOGGER.debug("Stored full name for PID k%s: %s", pid, name_value)
+            elif key.startswith("userShortName"):
+                # Extract PID from userShortNameXXXX
+                pid = key[13:]  # Remove "userShortName" prefix
+                name_value = _extract_name_from_value(value)
+                if pid and name_value:
+                    if "k" + pid not in sensor_names:
+                        sensor_names["k" + pid] = {
+                            "full_name": None,
+                            "short_name": name_value
+                        }
+                    else:
+                        sensor_names["k" + pid]["short_name"] = name_value
+                    _LOGGER.debug("Stored short name for PID k%s: %s", pid, name_value)
+        
         new_sensors = []
         
-        # Check each key in the incoming data
+        # Second pass: Check each key in the incoming data for actual sensor values (k{PID})
         for key in data_dict.keys():
-            # Skip if sensor already exists or if it's a metadata field
-            if key in added_sensors or key in ATTRIBUTE_FIELDS:
+            # Skip if sensor already exists
+            if key in added_sensors:
                 continue
+            
+            # Skip metadata fields
+            if key in ATTRIBUTE_FIELDS:
+                continue
+            
+            # Skip fields that match metadata prefixes
+            is_metadata = False
+            for prefix in METADATA_FIELD_PREFIXES:
+                if key.startswith(prefix):
+                    is_metadata = True
+                    break
+            if is_metadata:
+                continue
+            
+            # Only create sensors for data keys (k{PID})
+            if not key.startswith("k"):
+                continue
+            
+            # Determine sensor name from payload or definitions
+            sensor_name = None
+            if key in sensor_names:
+                # Use full name if available, otherwise short name
+                if sensor_names[key].get("full_name"):
+                    sensor_name = sensor_names[key]["full_name"]
+                elif sensor_names[key].get("short_name"):
+                    sensor_name = sensor_names[key]["short_name"]
             
             # Check if we have a definition for this sensor
             if key in sensor_definitions:
-                definition = sensor_definitions[key]
+                definition = sensor_definitions[key].copy()
+                # Override name if we got one from payload
+                if sensor_name:
+                    definition["name"] = sensor_name
+                    _LOGGER.debug("Using name from payload for PID '%s': %s", key, sensor_name)
             else:
                 # Create a generic definition for undefined PIDs
                 definition = {
-                    "name": f"PID {key}",
+                    "name": sensor_name if sensor_name else f"PID {key}",
                     "unit": None,
                     "icon": "mdi:car-info",
                     "device_class": None,
                     "state_class": None,
                 }
-                _LOGGER.info("Creating generic sensor for undefined PID: %s", key)
+                _LOGGER.info("Creating generic sensor for undefined PID: %s with name: %s", key, definition["name"])
             
             # Create the sensor
             sensor = TorqueSensor(
