@@ -1,5 +1,5 @@
 # Steps executed by Copilot coding agent to prepare the ephemeral environment.
-# Purpose: pre-install dependencies and make tests run quickly and deterministically.
+# Purpose: pre-install dependencies for Home Assistant custom component development.
 
 steps:
   - name: Setup Python and virtual environment
@@ -8,24 +8,18 @@ steps:
       source .venv/bin/activate
       pip install --upgrade pip
 
-  - name: Install repo dependencies if requirements.txt exists
+  - name: Install Home Assistant for validation
     run: |
-      if [ -f requirements.txt ]; then
-        pip install -r requirements.txt
-      fi
+      # Install Home Assistant with validation tools
+      pip install homeassistant || echo "Home Assistant installation optional"
 
-  - name: Install the package in editable mode (if package exists)
+  - name: Install code quality tools
     run: |
-      if [ -f setup.py ] || [ -f pyproject.toml ]; then
-        pip install -e .
-      fi
+      # Install formatters and linters
+      pip install black flake8 pylint || true
 
-  - name: Install test tools
+  - name: Verify integration structure
     run: |
-      pip install pytest
-      pip install black flake8 mypy || true
-
-  - name: Quick smoke test
-    run: |
-      # Run a quick test discovery to ensure tests can be collected
-      pytest -q --maxfail=1 || true
+      # Check that the integration structure is valid
+      ls -la custom_components/torque_obd/
+      cat custom_components/torque_obd/manifest.json
