@@ -35,7 +35,10 @@ def _normalize_pid(pid: str) -> str:
         pid: The PID string from Torque (e.g., "k5" or "k05")
         
     Returns:
-        Normalized PID with leading zeros (e.g., "k05")
+        Normalized PID with leading zeros. Examples:
+        - k5 -> k05 (short format normalized)
+        - k0d -> k0d (already normalized)
+        - k221e1c -> k221e1c (extended format unchanged)
     """
     if not pid.startswith("k"):
         return pid
@@ -43,7 +46,8 @@ def _normalize_pid(pid: str) -> str:
     # Extract the hex part after 'k'
     hex_part = pid[1:]
     
-    # Validate hex part (optional but good practice)
+    # Validate hex format for robustness - malformed PIDs are returned unchanged
+    # This prevents crashes from invalid data while logging the issue
     try:
         int(hex_part, 16)  # Validate it's valid hexadecimal
     except ValueError:
@@ -272,7 +276,7 @@ class TorqueView(HomeAssistantView):
                     "device_class": None,
                     "state_class": None,
                 }
-                _LOGGER.info("Creating generic sensor for undefined PID: %s (normalized: %s) with name: %s", key, normalized_key, definition["name"])
+                _LOGGER.debug("Creating generic sensor for undefined PID: %s (normalized: %s) with name: %s", key, normalized_key, definition["name"])
             
             # Create the sensor using the ORIGINAL key (not normalized)
             # This is critical: the incoming data_dict from Torque contains non-normalized
