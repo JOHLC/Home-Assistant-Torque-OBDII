@@ -20,6 +20,54 @@ PLATFORMS = [Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+# Standard OBD-II PIDs (0x00-0xFF) use 2 hex digits
+STANDARD_PID_HEX_LENGTH = 2
+
+
+def _normalize_pid(pid: str) -> str:
+    """Normalize PID format to ensure consistent format with leading zeros.
+    
+    Torque sends PIDs in different formats:
+    - Short format: k5, kb, kc, kd, kf (without leading zeros)
+    - Long format: k05, k0b, k0c, k0d, k0f (with leading zeros)
+    - Extended format: k221e1c, k2203ca, etc. (longer than 2 hex digits)
+    
+    This function normalizes short PIDs to the long format used in const.py.
+    Standard OBD-II PIDs (0x00-0xFF) should always be 2 hex digits.
+    Extended PIDs with more than 2 hex digits remain unchanged.
+    
+    Args:
+        pid: The PID string from Torque (e.g., "k5" or "k05")
+        
+    Returns:
+        Normalized PID with leading zeros. Examples:
+        - k5 -> k05 (short format normalized)
+        - k0d -> k0d (long format unchanged)
+        - k221e1c -> k221e1c (extended format unchanged)
+    """
+    if not pid.startswith("k"):
+        return pid
+    
+    # Extract the hex part after 'k'
+    hex_part = pid[1:]
+    
+    # Validate hex format for robustness - malformed PIDs are returned unchanged
+    # This prevents crashes from invalid data while logging the issue
+    try:
+        int(hex_part, 16)  # Validate it's valid hexadecimal
+    except ValueError:
+        # If not valid hex, return as-is
+        _LOGGER.debug("Invalid hex in PID '%s', returning as-is", pid)
+        return pid
+    
+    # Only normalize if it's a short standard PID (1-2 hex digits)
+    # Extended PIDs (kff*, k22*, etc.) are already in the correct format
+    if len(hex_part) <= STANDARD_PID_HEX_LENGTH:
+        # Pad with leading zero if needed for standard OBD-II PIDs
+        hex_part = hex_part.zfill(STANDARD_PID_HEX_LENGTH)
+    
+    return f"k{hex_part}"
+
 
 def _extract_name_from_value(value: Any) -> str | None:
     """Extract name from value, handling arrays and strings.
@@ -151,36 +199,47 @@ class TorqueView(HomeAssistantView):
             if key.startswith("userFullName"):
                 # Extract PID from userFullNameXXXX
                 pid = key[12:]  # Remove "userFullName" prefix
+                # Normalize the PID format
+                normalized_pid = _normalize_pid("k" + pid)
                 name_value = _extract_name_from_value(value)
                 if pid and name_value:
-                    if "k" + pid not in sensor_names:
-                        sensor_names["k" + pid] = {
+                    if normalized_pid not in sensor_names:
+                        sensor_names[normalized_pid] = {
                             "full_name": name_value,
                             "short_name": None
                         }
                     else:
-                        sensor_names["k" + pid]["full_name"] = name_value
-                    _LOGGER.debug("Stored full name for PID k%s: %s", pid, name_value)
+                        sensor_names[normalized_pid]["full_name"] = name_value
+                    _LOGGER.debug("Stored full name for PID %s: %s", normalized_pid, name_value)
             elif key.startswith("userShortName"):
                 # Extract PID from userShortNameXXXX
                 pid = key[13:]  # Remove "userShortName" prefix
+                # Normalize the PID format
+                normalized_pid = _normalize_pid("k" + pid)
                 name_value = _extract_name_from_value(value)
                 if pid and name_value:
-                    if "k" + pid not in sensor_names:
-                        sensor_names["k" + pid] = {
+                    if normalized_pid not in sensor_names:
+                        sensor_names[normalized_pid] = {
                             "full_name": None,
                             "short_name": name_value
                         }
                     else:
-                        sensor_names["k" + pid]["short_name"] = name_value
-                    _LOGGER.debug("Stored short name for PID k%s: %s", pid, name_value)
+                        sensor_names[normalized_pid]["short_name"] = name_value
+                    _LOGGER.debug("Stored short name for PID %s: %s", normalized_pid, name_value)
         
         new_sensors = []
         
         # Second pass: Check each key in the incoming data for actual sensor values (k{PID})
         for key in data_dict.keys():
-            # Skip if sensor already exists
-            if key in added_sensors:
+            # Only process data keys (k{PID})
+            if not key.startswith("k"):
+                continue
+            
+            # Normalize the PID format for consistent lookups
+            normalized_key = _normalize_pid(key)
+            
+            # Skip if sensor already exists (check both original and normalized)
+            if key in added_sensors or normalized_key in added_sensors:
                 continue
             
             # Skip metadata fields
@@ -196,26 +255,22 @@ class TorqueView(HomeAssistantView):
             if is_metadata:
                 continue
             
-            # Only create sensors for data keys (k{PID})
-            if not key.startswith("k"):
-                continue
-            
             # Determine sensor name from payload or definitions
             sensor_name = None
-            if key in sensor_names:
+            if normalized_key in sensor_names:
                 # Use full name if available, otherwise short name
-                if sensor_names[key].get("full_name"):
-                    sensor_name = sensor_names[key]["full_name"]
-                elif sensor_names[key].get("short_name"):
-                    sensor_name = sensor_names[key]["short_name"]
+                if sensor_names[normalized_key].get("full_name"):
+                    sensor_name = sensor_names[normalized_key]["full_name"]
+                elif sensor_names[normalized_key].get("short_name"):
+                    sensor_name = sensor_names[normalized_key]["short_name"]
             
-            # Check if we have a definition for this sensor
-            if key in sensor_definitions:
-                definition = sensor_definitions[key].copy()
+            # Check if we have a definition for this sensor (using normalized key)
+            if normalized_key in sensor_definitions:
+                definition = sensor_definitions[normalized_key].copy()
                 # Override name if we got one from payload
                 if sensor_name:
                     definition["name"] = sensor_name
-                    _LOGGER.debug("Using name from payload for PID '%s': %s", key, sensor_name)
+                    _LOGGER.debug("Using name from payload for PID '%s' (original: '%s'): %s", normalized_key, key, sensor_name)
             else:
                 # Create a generic definition for undefined PIDs
                 definition = {
@@ -225,20 +280,22 @@ class TorqueView(HomeAssistantView):
                     "device_class": None,
                     "state_class": None,
                 }
-                _LOGGER.info("Creating generic sensor for undefined PID: %s with name: %s", key, definition["name"])
+                _LOGGER.debug("Creating generic sensor for undefined PID '%s' (original: '%s') with name: %s", normalized_key, key, definition["name"])
             
-            # Create the sensor
+            # Use original key for data lookup - data_dict contains non-normalized PIDs from Torque
             sensor = TorqueSensor(
                 self.hass,
                 self.entry_id,
                 entry_data.get("email", ""),
                 entry_data.get("vehicle_name", "Unknown"),
-                key,
+                key,  # Original key (e.g., "kd") matches data_dict keys from Torque
                 definition,
             )
             new_sensors.append(sensor)
+            # Track both keys to prevent duplicate sensors (e.g., if both "kd" and "k0d" appear)
             added_sensors.add(key)
-            _LOGGER.debug("Creating new sensor '%s' for PID '%s'", definition["name"], key)
+            added_sensors.add(normalized_key)
+            _LOGGER.debug("Creating new sensor '%s' for PID '%s' (normalized: '%s')", definition["name"], key, normalized_key)
         
         # Add the new sensors if any
         if new_sensors:
