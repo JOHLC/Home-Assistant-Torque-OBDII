@@ -125,7 +125,7 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         # Restore previous state if available
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state not in (None, STATE_UNKNOWN, STATE_UNAVAILABLE):
-            _LOGGER.debug("Restoring previous state for sensor '%s': %s", self._attr_name, last_state.state)
+            _LOGGER.info("Restoring previous state for sensor '%s': %s", self._attr_name, last_state.state)
             
             # Restore the native value
             try:
@@ -147,6 +147,10 @@ class TorqueSensor(RestoreEntity, SensorEntity):
                 if custom_attrs:
                     self._attr_extra_state_attributes = custom_attrs
                     _LOGGER.debug("Restored attributes for sensor '%s': %s", self._attr_name, self._attr_extra_state_attributes)
+            
+            # Write the restored state to Home Assistant
+            self.async_write_ha_state()
+            _LOGGER.debug("Wrote restored state to Home Assistant for sensor '%s'", self._attr_name)
         
         # Register callback for data updates
         self.async_on_remove(
