@@ -4,6 +4,7 @@ Primary language: Python
 
 Overview
 This repository provides a Home Assistant custom integration for receiving vehicle data from the Torque Pro Android application via OBD-II. This is a HACS-compatible custom component with no external Python dependencies.
+Whenever there are changes or anything different,  make sure to update the instructions file at: /.github/copilot-instructions.md with anything relevant. 
 
 Repository Structure
 - custom_components/torque_obd/ - Main integration code
@@ -15,6 +16,9 @@ Repository Structure
 - tests/ - Example payload data (no automated tests currently)
 - examples/ - Example configurations
 - .github/home-assistant-developer-docs/ - Home Assistant development documentation reference
+  
+- Comprehnsive Home Assistant developer documentation is located at: /.github/home-assistant-developer-docs/
+- A few example integrations/scaffolds are located at /.github/example-custom-components/
 
 Development Environment Setup
 This is a Home Assistant custom component. For development:
