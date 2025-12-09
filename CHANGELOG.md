@@ -13,6 +13,11 @@
 - Example sensor definitions file with detailed comments
 
 ### Fixed
+- **State Persistence After Reboot**: Fixed sensor data showing as "unavailable" after Home Assistant restart
+  - Sensors now correctly display their last known values after reboot
+  - State restoration was working internally but not writing to Home Assistant's state machine
+  - Added `async_write_ha_state()` call after state restoration to persist values across restarts
+  
 - **Corrected PID Mappings** to match standard OBD-II specifications with proper leading zeros:
   - Fixed single-digit hex PIDs to include leading zero (e.g., `k5` → `k05`, `kc` → `k0c`, `kd` → `k0d`, `kf` → `k0f`)
   - Corrected GPS sensor mappings to match reference table:
