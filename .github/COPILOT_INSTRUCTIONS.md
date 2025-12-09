@@ -1,6 +1,7 @@
 # Copilot Instructions Configuration
 
 This document describes the Copilot coding agent instructions configured for the Home Assistant Torque OBD-II integration repository.
+Whenever there are changes or anything different,  make sure to update the instructions file at: /.github/COPILOT_INSTRUCTIONS.md with anything relevant. 
 
 ## Overview
 
@@ -47,6 +48,11 @@ Custom agent configuration:
 - Deep understanding of PID naming conventions
 - Expertise in Home Assistant patterns
 - Context about Torque Pro app limitations and behavior
+
+### 6. `Developer documentation`
+- Comprehnsive Home Assistant developer documentation is located at: 
+/.github/home-assistant-developer-docs/
+- A few example integrations are located at /.github/example-custom-components/
 
 ## Key Features
 
