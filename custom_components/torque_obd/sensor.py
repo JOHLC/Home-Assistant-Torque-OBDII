@@ -130,7 +130,17 @@ class TorqueSensor(RestoreEntity, SensorEntity):
             
             # Restore the native value
             try:
-                self._attr_native_value = float(last_state.state)
+                restored_value = float(last_state.state)
+                # Check if the restored value is finite (not inf, -inf, or nan)
+                if not math.isfinite(restored_value):
+                    _LOGGER.debug(
+                        "Sensor '%s' had non-finite restored state '%s', setting to None",
+                        self._attr_name,
+                        last_state.state
+                    )
+                    self._attr_native_value = None
+                else:
+                    self._attr_native_value = restored_value
             except (ValueError, TypeError):
                 self._attr_native_value = last_state.state
             
