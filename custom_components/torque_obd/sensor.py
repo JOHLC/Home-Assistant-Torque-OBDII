@@ -27,6 +27,25 @@ from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def _create_default_sensor_definition(pid_key: str, entity_name: str | None = None) -> dict[str, Any]:
+    """Create a default sensor definition for PIDs without predefined definitions.
+    
+    Args:
+        pid_key: The PID key (e.g., "k05" or "kff1001")
+        entity_name: Optional entity name from registry
+        
+    Returns:
+        Dictionary with default sensor definition
+    """
+    return {
+        "name": entity_name or f"PID {pid_key}",
+        "unit": None,
+        "icon": "mdi:car-info",
+        "device_class": None,
+        "state_class": None,
+    }
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -78,51 +97,59 @@ async def async_setup_entry(
         
         # Extract the PID key from the unique_id
         # Format is: torque_obd_{entry_id}_{pid_key}
-        unique_id_parts = entity_entry.unique_id.split("_", 2)
-        if len(unique_id_parts) >= 3:
-            pid_key = unique_id_parts[2]
-            
-            # Normalize the PID for definition lookup
-            normalized_pid = _normalize_pid(pid_key)
-            
-            # Get sensor definition if available (use normalized PID for lookup)
-            definition = sensor_definitions.get(normalized_pid, {
-                "name": entity_entry.original_name or f"PID {pid_key}",
-                "unit": None,
-                "icon": "mdi:car-info",
-                "device_class": None,
-                "state_class": None,
-            })
-            
-            # If entity has a custom name override, use it
-            if entity_entry.name:
-                definition = definition.copy()
-                definition["name"] = entity_entry.name
-            
-            # Create the sensor to restore it (use original PID key)
-            sensor = TorqueSensor(
-                hass,
-                config_entry.entry_id,
-                email,
-                vehicle_name,
-                pid_key,  # Use original key as stored in unique_id
-                definition,
+        # Since DOMAIN is "torque_obd" and entry_id is a UUID (no underscores),
+        # we can safely split and take the last part after "torque_obd_{entry_id}_"
+        unique_id_prefix = f"{DOMAIN}_{config_entry.entry_id}_"
+        if not entity_entry.unique_id.startswith(unique_id_prefix):
+            _LOGGER.warning(
+                "Unexpected unique_id format for entity %s: %s",
+                entity_entry.entity_id,
+                entity_entry.unique_id
             )
-            sensors.append(sensor)
+            continue
             
-            # Mark both original and normalized keys as added to prevent duplicates
-            if config_entry.entry_id in hass.data.get(DOMAIN, {}):
-                hass.data[DOMAIN][config_entry.entry_id]["added_sensors"].add(pid_key)
-                hass.data[DOMAIN][config_entry.entry_id]["added_sensors"].add(normalized_pid)
-            
-            restored_count += 1
-            _LOGGER.debug(
-                "Restoring sensor '%s' (PID: %s, normalized: %s) for vehicle '%s'",
-                definition["name"],
-                pid_key,
-                normalized_pid,
-                vehicle_name,
-            )
+        pid_key = entity_entry.unique_id[len(unique_id_prefix):]
+        
+        # Normalize the PID for definition lookup
+        normalized_pid = _normalize_pid(pid_key)
+        
+        # Get sensor definition if available (use normalized PID for lookup)
+        definition = sensor_definitions.get(
+            normalized_pid,
+            _create_default_sensor_definition(pid_key, entity_entry.original_name)
+        )
+        
+        # If entity has a custom name override, use it
+        if entity_entry.name:
+            definition = definition.copy()
+            definition["name"] = entity_entry.name
+        
+        # Create the sensor to restore it (use original PID key)
+        sensor = TorqueSensor(
+            hass,
+            config_entry.entry_id,
+            email,
+            vehicle_name,
+            pid_key,  # Use original key as stored in unique_id
+            definition,
+        )
+        sensors.append(sensor)
+        
+        # Mark both original and normalized keys as added to prevent duplicates
+        # Safely check if entry data exists before updating
+        entry_data = hass.data.get(DOMAIN, {}).get(config_entry.entry_id)
+        if entry_data and "added_sensors" in entry_data:
+            entry_data["added_sensors"].add(pid_key)
+            entry_data["added_sensors"].add(normalized_pid)
+        
+        restored_count += 1
+        _LOGGER.debug(
+            "Restoring sensor '%s' (PID: %s, normalized: %s) for vehicle '%s'",
+            definition["name"],
+            pid_key,
+            normalized_pid,
+            vehicle_name,
+        )
     
     if restored_count > 0:
         _LOGGER.info(
