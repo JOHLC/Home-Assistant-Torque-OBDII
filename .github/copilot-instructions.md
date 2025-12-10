@@ -11,13 +11,19 @@ Repository Structure
   - __init__.py - Component initialization and setup
   - config_flow.py - UI-based configuration flow
   - sensor.py - Sensor platform implementation
-  - const.py - Constants and PID mappings
+  - const.py - Constants and PID mappings (151+ PIDs defined)
   - manifest.json - Integration metadata
+  - README.md - Detailed setup and configuration guide
+  - ARCHITECTURE.md - Technical architecture documentation
 - tests/ - Example payload data (no automated tests currently)
 - examples/ - Example configurations
+- PIDS.md - Comprehensive PID reference guide (151+ PIDs documented)
+- TROUBLESHOOTING.md - Complete troubleshooting guide
+- README.md - Main project readme with quick start
+- CHANGELOG.md - Version history and changes
 - .github/home-assistant-developer-docs/ - Home Assistant development documentation reference
   
-- Comprehnsive Home Assistant developer documentation is located at: /.github/home-assistant-developer-docs/
+- Comprehensive Home Assistant developer documentation is located at: /.github/home-assistant-developer-docs/
 - A few example integrations/scaffolds are located at /.github/example-custom-components/
 
 Development Environment Setup
@@ -56,6 +62,11 @@ Integration-Specific Guidelines
 - Follow Home Assistant's async conventions (use async/await)
 - Use HomeAssistant's aiohttp session for HTTP requests
 
+Important User Setup Notes
+- After configuring both Home Assistant and Torque for the first time, users MUST force stop the Torque app and reopen it
+- This is documented in README.md, custom_components/torque_obd/README.md, and TROUBLESHOOTING.md
+- This is the most common cause of "no data appearing" issues
+
 Acceptance Criteria for PRs
 - Code follows Home Assistant conventions
 - manifest.json is valid and up-to-date
@@ -64,6 +75,7 @@ Acceptance Criteria for PRs
 - Include example configuration if adding new features
 - Validate with hassfest if modifying integration structure
 - Test manually with Torque app if modifying data handling
+- Update documentation if changing user-facing behavior
 
 Notes for the Agent
 - This integration has no external Python dependencies (requirements: [] in manifest.json)
