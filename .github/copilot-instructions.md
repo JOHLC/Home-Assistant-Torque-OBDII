@@ -23,7 +23,7 @@ Repository Structure
 - CHANGELOG.md - Version history and changes
 - .github/home-assistant-developer-docs/ - Home Assistant development documentation reference
   
-- Comprehnsive Home Assistant developer documentation is located at: /.github/home-assistant-developer-docs/
+- Comprehensive Home Assistant developer documentation is located at: /.github/home-assistant-developer-docs/
 - A few example integrations/scaffolds are located at /.github/example-custom-components/
 
 Development Environment Setup

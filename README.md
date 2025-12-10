@@ -11,7 +11,7 @@ This integration allows you to monitor real-time vehicle diagnostics data from y
 ## Features
 
 - 🚗 **Real-time vehicle monitoring** - Get live data from your vehicle's OBD-II port
-- 📊 **30+ vehicle parameters** - Speed, RPM, fuel level, temperatures, and more
+- 📊 **151+ vehicle parameters** - Speed, RPM, fuel level, temperatures, and more
 - 🗺️ **GPS tracking** - Location, altitude, and bearing information
 - 🔌 **Easy setup** - Simple UI-based configuration
 - 📱 **Multiple vehicles** - Support for multiple cars with different email identifiers
