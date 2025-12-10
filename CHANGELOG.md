@@ -44,6 +44,14 @@
 - Example sensor definitions file with detailed comments
 
 ### Fixed
+- **Sensor Restoration After Reboot**: Fixed sensors showing as "unavailable" after Home Assistant restart
+  - Sensors are now restored from the entity registry during integration setup
+  - Previously existing sensors are recreated immediately on startup
+  - Each sensor's `RestoreEntity` class restores its last known state and attributes
+  - Sensors remain available with their previous values until new data arrives from Torque
+  - Proper PID normalization ensures correct sensor definition lookup and duplicate prevention
+  - Both original and normalized PID keys are tracked to prevent duplicate sensor creation
+  
 - **State Persistence After Reboot**: Fixed sensor data showing as "unavailable" after Home Assistant restart
   - Sensors now correctly display their last known values after reboot
   - State restoration was working internally but not writing to Home Assistant's state machine
