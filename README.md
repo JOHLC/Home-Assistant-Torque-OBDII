@@ -63,19 +63,34 @@ Each vehicle gets its own unique API endpoint based on the name you configured.
    - **Web Upload URL**: Use your vehicle's unique endpoint (e.g., `http://YOUR_HA_IP:8123/api/torque-2025-ford-escape`)
    - **Email Address**: Optional (Torque does not reliably send this field)
    - Enable logging
-4. Start driving!
+4. **⚠️ IMPORTANT**: After configuring both Home Assistant and Torque for the first time:
+   - Go to Android Settings → Apps → Torque Pro
+   - Tap **Force Stop**
+   - Reopen Torque Pro
+   - Reconnect to your OBD-II adapter
+5. Start driving!
 
 **Note**: The integration domain is `torque_obd` to avoid conflicts with the native Torque integration.
 
 ## Documentation
 
-For detailed setup instructions, troubleshooting, and sensor information, see the [Torque integration README](custom_components/torque_obd/README.md).
+### 📚 Comprehensive Guides
 
-For example automations and dashboard configurations, see the [example configuration file](examples/torque_configuration.yaml).
+- **[Setup Guide](custom_components/torque_obd/README.md)** - Detailed installation and configuration instructions
+- **[PID Reference](PIDS.md)** - Complete database of 151+ supported OBD-II PIDs with descriptions
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Solutions to common issues and problems
+- **[Example Automations](examples/torque_configuration.yaml)** - Dashboard and automation examples
+- **[Architecture Documentation](custom_components/torque_obd/ARCHITECTURE.md)** - Technical details for developers
+
+### Quick Links
+
+- [Supported Sensors](#supported-sensors)
+- [Requirements](#requirements)
+- [Example Use Cases](#example-use-cases)
 
 ## Supported Sensors
 
-The integration **dynamically creates sensors** based on data received from Torque:
+The integration **dynamically creates sensors** based on data received from Torque. Over **151+ PIDs** are supported:
 
 - **Speed & Motion**: Vehicle speed, GPS speed, trip distance
 - **Engine**: RPM, coolant temperature, oil temperature, intake air temperature
@@ -84,6 +99,8 @@ The integration **dynamically creates sensors** based on data received from Torq
 - **Environment**: Ambient temperature, barometric pressure
 - **GPS**: Latitude, longitude, altitude, bearing
 - And many more OBD-II parameters
+
+📖 **[View Complete PID Database](PIDS.md)** - Detailed reference of all 151+ supported sensors with descriptions, units, and compatibility information.
 
 **Sensor Names**: The integration automatically uses sensor names provided by Torque, giving you accurate, vehicle-specific names for each parameter.
 
