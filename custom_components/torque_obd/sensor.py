@@ -21,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from . import _normalize_pid
 from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,8 +82,11 @@ async def async_setup_entry(
         if len(unique_id_parts) >= 3:
             pid_key = unique_id_parts[2]
             
-            # Get sensor definition if available
-            definition = sensor_definitions.get(pid_key, {
+            # Normalize the PID for definition lookup
+            normalized_pid = _normalize_pid(pid_key)
+            
+            # Get sensor definition if available (use normalized PID for lookup)
+            definition = sensor_definitions.get(normalized_pid, {
                 "name": entity_entry.original_name or f"PID {pid_key}",
                 "unit": None,
                 "icon": "mdi:car-info",
@@ -95,26 +99,28 @@ async def async_setup_entry(
                 definition = definition.copy()
                 definition["name"] = entity_entry.name
             
-            # Create the sensor to restore it
+            # Create the sensor to restore it (use original PID key)
             sensor = TorqueSensor(
                 hass,
                 config_entry.entry_id,
                 email,
                 vehicle_name,
-                pid_key,
+                pid_key,  # Use original key as stored in unique_id
                 definition,
             )
             sensors.append(sensor)
             
-            # Mark this sensor as added to prevent duplicates
+            # Mark both original and normalized keys as added to prevent duplicates
             if config_entry.entry_id in hass.data.get(DOMAIN, {}):
                 hass.data[DOMAIN][config_entry.entry_id]["added_sensors"].add(pid_key)
+                hass.data[DOMAIN][config_entry.entry_id]["added_sensors"].add(normalized_pid)
             
             restored_count += 1
             _LOGGER.debug(
-                "Restoring sensor '%s' (PID: %s) for vehicle '%s'",
+                "Restoring sensor '%s' (PID: %s, normalized: %s) for vehicle '%s'",
                 definition["name"],
                 pid_key,
+                normalized_pid,
                 vehicle_name,
             )
     
