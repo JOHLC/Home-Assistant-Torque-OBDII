@@ -57,35 +57,28 @@ async def async_setup_entry(
 
     _LOGGER.info("Setting up Torque sensor platform for vehicle '%s'", vehicle_name)
 
-    # Store the async_add_entities callback for dynamic sensor creation
-    # Entry data should already exist from __init__.py, but check to be safe
-    if config_entry.entry_id in hass.data.get(DOMAIN, {}):
-        hass.data[DOMAIN][config_entry.entry_id][
-            "async_add_entities"
-        ] = async_add_entities
-        hass.data[DOMAIN][config_entry.entry_id]["added_sensors"] = set()
-        hass.data[DOMAIN][config_entry.entry_id]["email"] = email
-        hass.data[DOMAIN][config_entry.entry_id]["vehicle_name"] = vehicle_name
-        _LOGGER.debug(
-            "Stored async_add_entities callback for entry %s", config_entry.entry_id
-        )
-
     # Get sensor definitions for restoring sensors
+    # Sensor definitions are loaded in __init__.py before platform setup
     sensor_definitions = hass.data.get(DOMAIN, {}).get("sensor_definitions", {})
+    if not sensor_definitions:
+        _LOGGER.warning(
+            "Sensor definitions not found during sensor setup for %s. "
+            "This is unexpected - definitions should be loaded in __init__.py",
+            vehicle_name
+        )
 
     # Ensure entry data exists (should already exist from __init__.py)
-    # But create it if missing to prevent issues during restoration
-    if config_entry.entry_id not in hass.data.get(DOMAIN, {}):
-        _LOGGER.warning(
-            "Entry data not found for %s during sensor setup, creating empty entry",
-            config_entry.entry_id
-        )
-        hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = {
-            "async_add_entities": async_add_entities,
-            "added_sensors": set(),
-            "email": email,
-            "vehicle_name": vehicle_name,
-        }
+    # Create it if missing as a defensive measure
+    hass.data.setdefault(DOMAIN, {}).setdefault(config_entry.entry_id, {})
+    entry_data = hass.data[DOMAIN][config_entry.entry_id]
+    
+    # Initialize or update entry data with required fields
+    entry_data.update({
+        "async_add_entities": async_add_entities,
+        "added_sensors": entry_data.get("added_sensors", set()),
+        "email": email,
+        "vehicle_name": vehicle_name,
+    })
 
     # Always add the API endpoint sensor upfront
     sensors = [

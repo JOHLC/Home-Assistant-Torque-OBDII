@@ -45,17 +45,19 @@
 
 ### Fixed
 - **Sensor Restoration After Reboot**: Fixed sensors showing as "unavailable" after Home Assistant restart
-  - Sensors are now restored from the entity registry during integration setup
+  - **Root Cause**: Sensors are created dynamically when data is received from Torque, so after a reboot they were not recreated until new data arrived
+  - **Solution**: Sensors are now restored from the entity registry during integration setup
   - Previously existing sensors are recreated immediately on startup
   - Each sensor's `RestoreEntity` class restores its last known state and attributes
   - Sensors remain available with their previous values until new data arrives from Torque
   - Proper PID normalization ensures correct sensor definition lookup and duplicate prevention
   - Both original and normalized PID keys are tracked to prevent duplicate sensor creation
   
-- **State Persistence After Reboot**: Fixed sensor data showing as "unavailable" after Home Assistant restart
-  - Sensors now correctly display their last known values after reboot
+- **State Persistence Within Session**: Fixed sensor state restoration within the same session
+  - Sensors now correctly display their last known values when restored
   - State restoration was working internally but not writing to Home Assistant's state machine
-  - Added `async_write_ha_state()` call after state restoration to persist values across restarts
+  - Added `async_write_ha_state()` call after state restoration to persist values
+  - **Note**: This fix addresses state restoration within a session, while the above fix addresses restoration after a full reboot
   
 - **Corrected PID Mappings** to match standard OBD-II specifications with proper leading zeros:
   - Fixed single-digit hex PIDs to include leading zero (e.g., `k5` → `k05`, `kc` → `k0c`, `kd` → `k0d`, `kf` → `k0f`)
