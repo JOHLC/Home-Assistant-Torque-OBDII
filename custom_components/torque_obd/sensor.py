@@ -18,11 +18,32 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from . import _normalize_pid
 from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _create_default_sensor_definition(pid_key: str, entity_name: str | None = None) -> dict[str, Any]:
+    """Create a default sensor definition for PIDs without predefined definitions.
+    
+    Args:
+        pid_key: The PID key (e.g., "k05" or "kff1001")
+        entity_name: Optional entity name from registry
+        
+    Returns:
+        Dictionary with default sensor definition
+    """
+    return {
+        "name": entity_name or f"PID {pid_key}",
+        "unit": None,
+        "icon": "mdi:car-info",
+        "device_class": None,
+        "state_class": None,
+    }
 
 
 async def async_setup_entry(
@@ -36,20 +57,30 @@ async def async_setup_entry(
 
     _LOGGER.info("Setting up Torque sensor platform for vehicle '%s'", vehicle_name)
 
-    # Store the async_add_entities callback for dynamic sensor creation
-    # Entry data should already exist from __init__.py, but check to be safe
-    if config_entry.entry_id in hass.data.get(DOMAIN, {}):
-        hass.data[DOMAIN][config_entry.entry_id][
-            "async_add_entities"
-        ] = async_add_entities
-        hass.data[DOMAIN][config_entry.entry_id]["added_sensors"] = set()
-        hass.data[DOMAIN][config_entry.entry_id]["email"] = email
-        hass.data[DOMAIN][config_entry.entry_id]["vehicle_name"] = vehicle_name
-        _LOGGER.debug(
-            "Stored async_add_entities callback for entry %s", config_entry.entry_id
+    # Get sensor definitions for restoring sensors
+    # Sensor definitions are loaded in __init__.py before platform setup
+    sensor_definitions = hass.data.get(DOMAIN, {}).get("sensor_definitions", {})
+    if not sensor_definitions:
+        _LOGGER.warning(
+            "Sensor definitions not found during sensor setup for %s. "
+            "This is unexpected - definitions should be loaded in __init__.py",
+            vehicle_name
         )
 
-    # Only add the API endpoint sensor upfront
+    # Ensure entry data exists (should already exist from __init__.py)
+    # Create it if missing as a defensive measure
+    hass.data.setdefault(DOMAIN, {}).setdefault(config_entry.entry_id, {})
+    entry_data = hass.data[DOMAIN][config_entry.entry_id]
+    
+    # Initialize or update entry data with required fields
+    entry_data.update({
+        "async_add_entities": async_add_entities,
+        "added_sensors": entry_data.get("added_sensors", set()),
+        "email": email,
+        "vehicle_name": vehicle_name,
+    })
+
+    # Always add the API endpoint sensor upfront
     sensors = [
         TorqueAPIEndpointSensor(
             hass,
@@ -58,8 +89,84 @@ async def async_setup_entry(
         )
     ]
 
+    # Restore previously registered sensors from entity registry
+    # This ensures sensors remain available after reboot until new data arrives
+    entity_reg = er.async_get(hass)
+    existing_entities = er.async_entries_for_config_entry(
+        entity_reg, config_entry.entry_id
+    )
+    
+    restored_count = 0
+    for entity_entry in existing_entities:
+        # Skip the API endpoint sensor (it's already added above)
+        if entity_entry.unique_id.endswith("_api_endpoint"):
+            continue
+        
+        # Extract the PID key from the unique_id
+        # Format is: torque_obd_{entry_id}_{pid_key}
+        # Use prefix matching for robust parsing regardless of entry_id format
+        unique_id_prefix = f"{DOMAIN}_{config_entry.entry_id}_"
+        if not entity_entry.unique_id.startswith(unique_id_prefix):
+            _LOGGER.warning(
+                "Unexpected unique_id format for entity %s: %s",
+                entity_entry.entity_id,
+                entity_entry.unique_id
+            )
+            continue
+            
+        pid_key = entity_entry.unique_id[len(unique_id_prefix):]
+        
+        # Normalize the PID for definition lookup
+        normalized_pid = _normalize_pid(pid_key)
+        
+        # Get sensor definition if available (use normalized PID for lookup)
+        definition = sensor_definitions.get(
+            normalized_pid,
+            _create_default_sensor_definition(pid_key, entity_entry.original_name)
+        )
+        
+        # Override sensor name if entity has a custom name
+        # We pass the custom name to TorqueSensor instead of copying the whole definition
+        sensor_name = entity_entry.name if entity_entry.name else definition["name"]
+        
+        # Create the sensor to restore it (use original PID key)
+        sensor = TorqueSensor(
+            hass,
+            config_entry.entry_id,
+            email,
+            vehicle_name,
+            pid_key,  # Use original key as stored in unique_id
+            {**definition, "name": sensor_name},  # Override name if custom
+        )
+        sensors.append(sensor)
+        
+        # Mark both original and normalized keys as added to prevent duplicates
+        entry_data = hass.data[DOMAIN][config_entry.entry_id]
+        entry_data["added_sensors"].add(pid_key)
+        entry_data["added_sensors"].add(normalized_pid)
+        
+        restored_count += 1
+        _LOGGER.debug(
+            "Restoring sensor '%s' (PID: %s, normalized: %s) for vehicle '%s'",
+            definition["name"],
+            pid_key,
+            normalized_pid,
+            vehicle_name,
+        )
+    
+    if restored_count > 0:
+        _LOGGER.info(
+            "Restored %d sensor(s) for vehicle '%s' from entity registry",
+            restored_count,
+            vehicle_name,
+        )
+
     async_add_entities(sensors, True)
-    _LOGGER.debug("Added API endpoint sensor for vehicle '%s'", vehicle_name)
+    _LOGGER.debug(
+        "Added %d total sensor(s) for vehicle '%s' (including API endpoint)",
+        len(sensors),
+        vehicle_name,
+    )
 
 
 class TorqueSensor(RestoreEntity, SensorEntity):
