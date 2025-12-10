@@ -506,13 +506,6 @@ SENSOR_DEFINITIONS: Final = {
         "device_class": None,
         "state_class": SensorStateClass.MEASUREMENT,
     },
-    "kff1007": {
-        "name": "GPS Bearing",
-        "unit": "°",
-        "icon": "mdi:compass",
-        "device_class": None,
-        "state_class": SensorStateClass.MEASUREMENT,
-    },
     "kff1010": {
         "name": "GPS Altitude",
         "unit": "m",
