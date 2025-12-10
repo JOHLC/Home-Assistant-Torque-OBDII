@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- **Ford-Specific PIDs**: Added 40 new Ford-specific PID definitions based on community feedback:
+  - Engine diagnostics: Oil temp, coolant temp, knock sensor
+  - Fuel system: Injector pulse width, fuel pressure, fuel level, pump duty cycle
+  - Transmission: Gear, fluid temp (3 methods), torque converter slip
+  - Misfire counters: Individual cylinder misfires (1-8) and total count
+  - Turbo/Boost: VGT duty cycle, boost pressure, exhaust back pressure
+  - Power systems: FICM voltages, battery voltage
+  - Sensors: Steering wheel angle, ABS wheel speed, lateral acceleration
+  - And more specialized Ford diagnostic PIDs
+  
 - **New PID Definitions**: Added 14 new PID definitions for better vehicle data coverage:
   - Standard OBD-II PIDs:
     - `k5e`: Engine Fuel Rate (L/h)
@@ -22,7 +32,7 @@
     - `kff129e`: Engine Friction (%) (%)
     - `kff12b6`: Fuel Injector Duty Cycle Bank 1 (%)
 - Updated PIDS.md documentation with all new PIDs
-- Total PIDs documented increased from 151+ to 165+
+- Total PIDs documented increased from 151+ to 205+
 
 - **Custom Sensor Definitions**: Added support for user-defined sensor definitions via `torque_sensor_definitions.yaml` file
   - Place the file in your Home Assistant config directory to customize or add sensor definitions
