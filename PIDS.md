@@ -49,6 +49,10 @@ These PIDs are defined by the OBD-II standard and should work on most vehicles m
 | k42 | 0x42 | Voltage (Control Module) | V | Control module voltage |
 | k43 | 0x43 | Engine Load (Absolute) | % | Absolute engine load value |
 | k5c | 0x5C | Engine Oil Temperature | °C | Engine oil temperature |
+| k5e | 0x5E | Engine Fuel Rate | L/h | Engine fuel consumption rate |
+| k62 | 0x62 | Actual Engine Percent Torque | % | Current engine torque as percentage |
+| k63 | 0x63 | Engine Reference Torque | Nm | Reference torque for percentage calculations |
+| k66 | 0x66 | Mass Air Flow Sensor B | g/s | Secondary mass air flow sensor reading |
 
 ### Fuel System
 
@@ -160,6 +164,7 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 | kff5201 | Miles Per Gallon (Long Term Average) | mpg | Long term average fuel economy |
 | kff5202 | Kilometers Per Litre (Long Term Average) | km/L | Long term average fuel economy |
 | kff5203 | Litres Per 100 Kilometer (Long Term Average) | L/100km | Long term average fuel economy |
+| kff1280 | Average Fuel Economy (Last Trip) | mpg | Average fuel economy from last completed trip |
 
 ### Fuel Usage & Cost
 
@@ -194,6 +199,9 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 | kff1226 | Horsepower (At the wheels) | hp | Calculated horsepower at wheels |
 | kff1273 | Engine kW (At the wheels) | kW | Calculated power in kilowatts |
 | kff1269 | Volumetric Efficiency (Calculated) | % | Calculated volumetric efficiency |
+| kff129a | Engine Load (Absolute) | % | Absolute engine load percentage |
+| kff129e | Engine Friction (%) | % | Calculated engine friction percentage |
+| kff12b6 | Fuel Injector Duty Cycle Bank 1 | % | Fuel injector duty cycle for bank 1 |
 
 ### Acceleration Times
 
@@ -270,6 +278,9 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 |-----|------|------|-------------|
 | kff1249 | Air Fuel Ratio (Measured) | - | Measured air-fuel ratio |
 | kff124d | Air Fuel Ratio (Commanded) | - | Commanded air-fuel ratio |
+| kff1296 | Air/Fuel Ratio Sensor 1 | - | Air/Fuel ratio from sensor 1 |
+| kff1297 | Air/Fuel Ratio Sensor 2 | - | Air/Fuel ratio from sensor 2 |
+| kff1298 | Air/Fuel Ratio Sensor 3 | - | Air/Fuel ratio from sensor 3 |
 
 ### Emissions
 
@@ -290,12 +301,55 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 
 | PID | Name | Unit | Description |
 |-----|------|------|-------------|
+| k0105 | Ford Coolant temperature (From TCM) | °C | Coolant temperature from transmission control module |
+| k220404 | Ford Knock Sensor | - | Knock sensor count |
+| k22096d | Ford VGT Duty Cycle | % | Variable geometry turbo duty cycle |
+| k22099f | Ford Fan Speed Sensor | RPM | Cooling fan speed |
+| k2209cb | Ford Torque into Torque Converter | ft-lb | Torque converter input torque |
+| k2209cc | Ford Injector timing before top dead center | ° | Injection timing advance |
+| k2209ce | Ford FICM Vehicle Power | V | FICM vehicle power supply voltage |
+| k2209cf | Ford FICM Logic Power | V | FICM logic power supply voltage |
+| k2209d0 | Ford FICM Main Power | V | FICM main power supply voltage |
+| k2209d4 | Ford Accelerator Pedal Position | % | Accelerator pedal position |
+| k221172 | Ford Battery Voltage | V | Vehicle battery voltage |
+| k221310 | Ford Engine Oil Temp | °C | Engine oil temperature |
+| k221410 | Ford Fuel Injector Pulse Width | µs | Fuel injector pulse width |
+| k221411 | Ford Volume Fuel Desired | gal/h | Desired fuel volume flow rate |
+| k221412 | Ford Mass Fuel Desired | mg/stroke | Desired fuel mass per stroke |
+| k221434 | Ford Injector Pressure Regulator Duty Cycle | % | IPR duty cycle |
+| k221440 | Ford Boost (Ford specific) | psi | Turbo boost pressure |
+| k221445 | Ford Exhaust Back Pressure | psi | Exhaust system back pressure |
+| k221446 | Ford Injection Control Pressure | psi | High pressure oil pump pressure |
+| k2211b3 | Ford Transmission Gear | - | Current transmission gear |
+| k2211b8 | Ford Torque converter slip | RPM | Torque converter slip speed |
+| k2211bd | Ford Transmission Fluid Temp (Method 3) | °F | Transmission fluid temperature method 3 |
+| k22160e | Ford Cylinder 1 Misfire count | - | Cylinder 1 misfire counter |
+| k22160f | Ford Cylinder 2 Misfire count | - | Cylinder 2 misfire counter |
+| k221610 | Ford Cylinder 3 Misfire count | - | Cylinder 3 misfire counter |
+| k221611 | Ford Cylinder 4 Misfire count | - | Cylinder 4 misfire counter |
+| k221612 | Ford Cylinder 5 Misfire count | - | Cylinder 5 misfire counter |
+| k221613 | Ford Cylinder 6 Misfire count | - | Cylinder 6 misfire counter |
+| k221614 | Ford Cylinder 7 Misfire count | - | Cylinder 7 misfire counter |
+| k221615 | Ford Cylinder 8 Misfire count | - | Cylinder 8 misfire counter |
+| k221616 | Ford Total number of misfires | - | Total misfire count all cylinders |
+| k221624 | Ford Cylinder head temperature | °F | Cylinder head temperature |
+| k221639 | Ford Fuel tank pressure | psi | Fuel tank vapor pressure |
+| k221672 | Ford Fuel pump duty cycle | % | Fuel pump duty cycle |
+| k221674 | Ford Transmission Fluid Temp (Method 1) | °F | Transmission fluid temperature method 1 |
+| k221685 | Ford Cylinder head temperature (alt) | °F | Cylinder head temperature alternate |
 | k221e1c | Ford Transmission Temperature | °F | Transmission temperature (Ford) |
 | k2203ca | Ford IAT2 (Method 2) | °C | Intake air temperature method 2 |
+| k22091a | O2 Sensor Voltage (Bank 1 Sensor 1) | V | Oxygen sensor voltage bank 1 sensor 1 |
+| k22093c | O2 Sensor Voltage (Bank 1 Sensor 2) | V | Oxygen sensor voltage bank 1 sensor 2 |
+| k2216a8 | Ford IAT2 (Method 1) | °C | Intake air temperature method 1 |
+| k2216c1 | Ford Fuel Level | % | Fuel tank level |
 | k222813 | Ford Front Driver Side Tire Pressure | psi | Left front tire pressure |
 | k222814 | Ford Front Passenger Side Tire Pressure | psi | Right front tire pressure |
 | k222815 | Ford Rear Driver Side Tire Pressure | psi | Left rear tire pressure |
 | k222816 | Ford Rear Passenger Side Tire Pressure | psi | Right rear tire pressure |
+| k223201 | Ford Steering wheel angle | ° | Steering wheel position angle |
+| k223987 | Ford ABS Wheel Speed | km/h | ABS wheel speed sensor |
+| k223a51 | Ford ABS - Lateral acceleration | g | Lateral acceleration from ABS |
 
 ### Other Manufacturer PIDs
 
@@ -387,4 +441,4 @@ Found a PID that's not listed? Want to add manufacturer-specific PIDs? Contribut
 ---
 
 **Last Updated**: December 2025  
-**Total PIDs Documented**: 151+
+**Total PIDs Documented**: 205+
