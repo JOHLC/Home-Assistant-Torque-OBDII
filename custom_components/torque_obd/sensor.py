@@ -71,7 +71,21 @@ async def async_setup_entry(
         )
 
     # Get sensor definitions for restoring sensors
-    sensor_definitions = hass.data[DOMAIN].get("sensor_definitions", {})
+    sensor_definitions = hass.data.get(DOMAIN, {}).get("sensor_definitions", {})
+
+    # Ensure entry data exists (should already exist from __init__.py)
+    # But create it if missing to prevent issues during restoration
+    if config_entry.entry_id not in hass.data.get(DOMAIN, {}):
+        _LOGGER.warning(
+            "Entry data not found for %s during sensor setup, creating empty entry",
+            config_entry.entry_id
+        )
+        hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = {
+            "async_add_entities": async_add_entities,
+            "added_sensors": set(),
+            "email": email,
+            "vehicle_name": vehicle_name,
+        }
 
     # Always add the API endpoint sensor upfront
     sensors = [
@@ -97,8 +111,7 @@ async def async_setup_entry(
         
         # Extract the PID key from the unique_id
         # Format is: torque_obd_{entry_id}_{pid_key}
-        # Since DOMAIN is "torque_obd" and entry_id is a UUID (no underscores),
-        # we can safely split and take the last part after "torque_obd_{entry_id}_"
+        # Use prefix matching for robust parsing regardless of entry_id format
         unique_id_prefix = f"{DOMAIN}_{config_entry.entry_id}_"
         if not entity_entry.unique_id.startswith(unique_id_prefix):
             _LOGGER.warning(
@@ -119,10 +132,9 @@ async def async_setup_entry(
             _create_default_sensor_definition(pid_key, entity_entry.original_name)
         )
         
-        # If entity has a custom name override, use it
-        if entity_entry.name:
-            definition = definition.copy()
-            definition["name"] = entity_entry.name
+        # Override sensor name if entity has a custom name
+        # We pass the custom name to TorqueSensor instead of copying the whole definition
+        sensor_name = entity_entry.name if entity_entry.name else definition["name"]
         
         # Create the sensor to restore it (use original PID key)
         sensor = TorqueSensor(
@@ -131,16 +143,14 @@ async def async_setup_entry(
             email,
             vehicle_name,
             pid_key,  # Use original key as stored in unique_id
-            definition,
+            {**definition, "name": sensor_name},  # Override name if custom
         )
         sensors.append(sensor)
         
         # Mark both original and normalized keys as added to prevent duplicates
-        # Safely check if entry data exists before updating
-        entry_data = hass.data.get(DOMAIN, {}).get(config_entry.entry_id)
-        if entry_data and "added_sensors" in entry_data:
-            entry_data["added_sensors"].add(pid_key)
-            entry_data["added_sensors"].add(normalized_pid)
+        entry_data = hass.data[DOMAIN][config_entry.entry_id]
+        entry_data["added_sensors"].add(pid_key)
+        entry_data["added_sensors"].add(normalized_pid)
         
         restored_count += 1
         _LOGGER.debug(
