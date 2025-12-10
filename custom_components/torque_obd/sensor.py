@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
@@ -49,7 +50,10 @@ async def async_setup_entry(
             "Stored async_add_entities callback for entry %s", config_entry.entry_id
         )
 
-    # Only add the API endpoint sensor upfront
+    # Get sensor definitions for restoring sensors
+    sensor_definitions = hass.data[DOMAIN].get("sensor_definitions", {})
+
+    # Always add the API endpoint sensor upfront
     sensors = [
         TorqueAPIEndpointSensor(
             hass,
@@ -58,8 +62,75 @@ async def async_setup_entry(
         )
     ]
 
+    # Restore previously registered sensors from entity registry
+    # This ensures sensors remain available after reboot until new data arrives
+    entity_reg = er.async_get(hass)
+    existing_entities = er.async_entries_for_config_entry(
+        entity_reg, config_entry.entry_id
+    )
+    
+    restored_count = 0
+    for entity_entry in existing_entities:
+        # Skip the API endpoint sensor (it's already added above)
+        if entity_entry.unique_id.endswith("_api_endpoint"):
+            continue
+        
+        # Extract the PID key from the unique_id
+        # Format is: torque_obd_{entry_id}_{pid_key}
+        unique_id_parts = entity_entry.unique_id.split("_", 2)
+        if len(unique_id_parts) >= 3:
+            pid_key = unique_id_parts[2]
+            
+            # Get sensor definition if available
+            definition = sensor_definitions.get(pid_key, {
+                "name": entity_entry.original_name or f"PID {pid_key}",
+                "unit": None,
+                "icon": "mdi:car-info",
+                "device_class": None,
+                "state_class": None,
+            })
+            
+            # If entity has a custom name override, use it
+            if entity_entry.name:
+                definition = definition.copy()
+                definition["name"] = entity_entry.name
+            
+            # Create the sensor to restore it
+            sensor = TorqueSensor(
+                hass,
+                config_entry.entry_id,
+                email,
+                vehicle_name,
+                pid_key,
+                definition,
+            )
+            sensors.append(sensor)
+            
+            # Mark this sensor as added to prevent duplicates
+            if config_entry.entry_id in hass.data.get(DOMAIN, {}):
+                hass.data[DOMAIN][config_entry.entry_id]["added_sensors"].add(pid_key)
+            
+            restored_count += 1
+            _LOGGER.debug(
+                "Restoring sensor '%s' (PID: %s) for vehicle '%s'",
+                definition["name"],
+                pid_key,
+                vehicle_name,
+            )
+    
+    if restored_count > 0:
+        _LOGGER.info(
+            "Restored %d sensor(s) for vehicle '%s' from entity registry",
+            restored_count,
+            vehicle_name,
+        )
+
     async_add_entities(sensors, True)
-    _LOGGER.debug("Added API endpoint sensor for vehicle '%s'", vehicle_name)
+    _LOGGER.debug(
+        "Added %d total sensor(s) for vehicle '%s' (including API endpoint)",
+        len(sensors),
+        vehicle_name,
+    )
 
 
 class TorqueSensor(RestoreEntity, SensorEntity):
