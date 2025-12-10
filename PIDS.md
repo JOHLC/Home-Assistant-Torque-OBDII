@@ -49,6 +49,10 @@ These PIDs are defined by the OBD-II standard and should work on most vehicles m
 | k42 | 0x42 | Voltage (Control Module) | V | Control module voltage |
 | k43 | 0x43 | Engine Load (Absolute) | % | Absolute engine load value |
 | k5c | 0x5C | Engine Oil Temperature | °C | Engine oil temperature |
+| k5e | 0x5E | Engine Fuel Rate | L/h | Engine fuel consumption rate |
+| k62 | 0x62 | Actual Engine Percent Torque | % | Current engine torque as percentage |
+| k63 | 0x63 | Engine Reference Torque | Nm | Reference torque for percentage calculations |
+| k66 | 0x66 | Mass Air Flow Sensor B | g/s | Secondary mass air flow sensor reading |
 
 ### Fuel System
 
@@ -160,6 +164,7 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 | kff5201 | Miles Per Gallon (Long Term Average) | mpg | Long term average fuel economy |
 | kff5202 | Kilometers Per Litre (Long Term Average) | km/L | Long term average fuel economy |
 | kff5203 | Litres Per 100 Kilometer (Long Term Average) | L/100km | Long term average fuel economy |
+| kff1280 | Average Fuel Economy (Last Trip) | mpg | Average fuel economy from last completed trip |
 
 ### Fuel Usage & Cost
 
@@ -194,6 +199,9 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 | kff1226 | Horsepower (At the wheels) | hp | Calculated horsepower at wheels |
 | kff1273 | Engine kW (At the wheels) | kW | Calculated power in kilowatts |
 | kff1269 | Volumetric Efficiency (Calculated) | % | Calculated volumetric efficiency |
+| kff129a | Engine Load (Absolute) | % | Absolute engine load percentage |
+| kff129e | Engine Friction (%) | % | Calculated engine friction percentage |
+| kff12b6 | Fuel Injector Duty Cycle Bank 1 | % | Fuel injector duty cycle for bank 1 |
 
 ### Acceleration Times
 
@@ -270,6 +278,9 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 |-----|------|------|-------------|
 | kff1249 | Air Fuel Ratio (Measured) | - | Measured air-fuel ratio |
 | kff124d | Air Fuel Ratio (Commanded) | - | Commanded air-fuel ratio |
+| kff1296 | Air/Fuel Ratio Sensor 1 | - | Air/Fuel ratio from sensor 1 |
+| kff1297 | Air/Fuel Ratio Sensor 2 | - | Air/Fuel ratio from sensor 2 |
+| kff1298 | Air/Fuel Ratio Sensor 3 | - | Air/Fuel ratio from sensor 3 |
 
 ### Emissions
 
@@ -292,6 +303,8 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 |-----|------|------|-------------|
 | k221e1c | Ford Transmission Temperature | °F | Transmission temperature (Ford) |
 | k2203ca | Ford IAT2 (Method 2) | °C | Intake air temperature method 2 |
+| k22091a | O2 Sensor Voltage (Bank 1 Sensor 1) | V | Oxygen sensor voltage bank 1 sensor 1 |
+| k22093c | O2 Sensor Voltage (Bank 1 Sensor 2) | V | Oxygen sensor voltage bank 1 sensor 2 |
 | k222813 | Ford Front Driver Side Tire Pressure | psi | Left front tire pressure |
 | k222814 | Ford Front Passenger Side Tire Pressure | psi | Right front tire pressure |
 | k222815 | Ford Rear Driver Side Tire Pressure | psi | Left rear tire pressure |
@@ -387,4 +400,4 @@ Found a PID that's not listed? Want to add manufacturer-specific PIDs? Contribut
 ---
 
 **Last Updated**: December 2025  
-**Total PIDs Documented**: 151+
+**Total PIDs Documented**: 165+

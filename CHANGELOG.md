@@ -3,6 +3,27 @@
 ## [Unreleased]
 
 ### Added
+- **New PID Definitions**: Added 14 new PID definitions for better vehicle data coverage:
+  - Standard OBD-II PIDs:
+    - `k5e`: Engine Fuel Rate (L/h)
+    - `k62`: Actual Engine Percent Torque (%)
+    - `k63`: Engine Reference Torque (Nm)
+    - `k66`: Mass Air Flow Sensor B (g/s)
+  - Manufacturer-Specific PIDs:
+    - `k22091a`: O2 Sensor Voltage (Bank 1 Sensor 1) (V)
+    - `k22093c`: O2 Sensor Voltage (Bank 1 Sensor 2) (V)
+  - Torque Custom PIDs:
+    - `kff1007`: GPS Bearing (°)
+    - `kff1280`: Average Fuel Economy (Last Trip) (mpg)
+    - `kff1296`: Air/Fuel Ratio Sensor 1
+    - `kff1297`: Air/Fuel Ratio Sensor 2
+    - `kff1298`: Air/Fuel Ratio Sensor 3
+    - `kff129a`: Engine Load (Absolute) (%)
+    - `kff129e`: Engine Friction (%) (%)
+    - `kff12b6`: Fuel Injector Duty Cycle Bank 1 (%)
+- Updated PIDS.md documentation with all new PIDs
+- Total PIDs documented increased from 151+ to 165+
+
 - **Custom Sensor Definitions**: Added support for user-defined sensor definitions via `torque_sensor_definitions.yaml` file
   - Place the file in your Home Assistant config directory to customize or add sensor definitions
   - Custom definitions override default definitions
