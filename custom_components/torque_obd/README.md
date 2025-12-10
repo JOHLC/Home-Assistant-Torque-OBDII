@@ -2,10 +2,16 @@
 
 This integration allows Home Assistant to receive vehicle data from the [Torque Pro](https://torque-bhp.com/) Android application via OBD-II.
 
+## 📚 Documentation Quick Links
+
+- **[PID Reference Guide](../../PIDS.md)** - Complete database of 151+ supported OBD-II PIDs
+- **[Troubleshooting Guide](../../TROUBLESHOOTING.md)** - Solutions to common issues
+- **[Architecture Documentation](ARCHITECTURE.md)** - Technical details for developers
+
 ## Features
 
 - Real-time vehicle data monitoring
-- Support for 30+ vehicle parameters including:
+- Support for 151+ vehicle parameters including:
   - Vehicle speed and GPS speed
   - Engine RPM
   - Engine coolant, oil, and intake air temperatures
@@ -55,6 +61,12 @@ Each vehicle gets its own unique API endpoint based on the vehicle name you conf
    - **Enable Logging**: Turn on
 5. Select the PIDs you want to log
 6. Save settings
+7. **⚠️ CRITICAL - First Time Setup**: After configuring both Home Assistant and Torque for the first time:
+   - Go to Android Settings → Apps → Torque Pro
+   - Tap **Force Stop**
+   - Reopen Torque Pro
+   - Reconnect to your OBD-II adapter
+   - This ensures Torque starts sending data to the new endpoint
 
 **Note**: Replace `YOUR_HA_IP` with your Home Assistant IP address. If using HTTPS, use `https://` instead.
 
@@ -230,8 +242,18 @@ If you need to expose Home Assistant externally, consider using:
 
 ## Troubleshooting
 
-### No Data Appearing in Home Assistant
+📖 **[View Complete Troubleshooting Guide](../../TROUBLESHOOTING.md)** - Comprehensive solutions to all common issues.
 
+### Quick Troubleshooting
+
+#### No Data Appearing in Home Assistant
+
+**⚠️ MOST COMMON ISSUE**: After initial setup, you must **force stop** the Torque app and reopen it:
+1. Go to Android Settings → Apps → Torque Pro
+2. Tap **Force Stop**
+3. Reopen Torque Pro and reconnect to OBD adapter
+
+**Other checks**:
 1. **Check the Torque app is sending data**:
    - Ensure "Enable Logging" is turned on
    - Verify the URL is correct (including port 8123)
@@ -250,11 +272,13 @@ If you need to expose Home Assistant externally, consider using:
    - Try accessing `http://YOUR_HA_IP:8123` in a browser on your Android device
    - Check firewall settings
 
-### Sensors Show "Unavailable"
+#### Sensors Show "Unavailable"
 
 - Sensors will show as "Unavailable" until the first data is received from Torque
 - Start driving with the Torque app running and logging enabled
 - Data should appear within a few seconds once logging starts
+
+📖 For more issues and detailed solutions, see the **[Complete Troubleshooting Guide](../../TROUBLESHOOTING.md)**.
 
 ## Technical Details
 
