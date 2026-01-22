@@ -141,7 +141,6 @@ async def async_setup_entry(
         sensors.append(sensor)
         
         # Mark both original and normalized keys as added to prevent duplicates
-        entry_data = hass.data[DOMAIN][config_entry.entry_id]
         entry_data["added_sensors"].add(pid_key)
         entry_data["added_sensors"].add(normalized_pid)
         
