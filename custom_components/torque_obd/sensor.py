@@ -147,7 +147,7 @@ async def async_setup_entry(
         restored_count += 1
         _LOGGER.debug(
             "Restoring sensor '%s' (PID: %s, normalized: %s) for vehicle '%s'",
-            definition["name"],
+            sensor_name,
             pid_key,
             normalized_pid,
             vehicle_name,
