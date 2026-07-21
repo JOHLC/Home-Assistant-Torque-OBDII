@@ -13,14 +13,60 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from . import _normalize_pid
 from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _build_lookup_keys(key: str) -> tuple[str, ...]:
+    """Build supported payload keys for a sensor."""
+    normalized_key = _normalize_pid(key)
+    lookup_keys = [key]
+
+    if normalized_key not in lookup_keys:
+        lookup_keys.append(normalized_key)
+
+    if normalized_key.startswith("k0") and len(normalized_key) == 3:
+        short_key = f"k{normalized_key[2:]}"
+        if short_key not in lookup_keys:
+            lookup_keys.append(short_key)
+
+    return tuple(lookup_keys)
+
+
+def _build_sensor_definition(
+    sensor_definitions: dict[str, dict[str, Any]],
+    key: str,
+    vehicle_name: str,
+    restored_name: str | None = None,
+) -> dict[str, Any]:
+    """Build a sensor definition for a restored or dynamic sensor."""
+    normalized_key = _normalize_pid(key)
+    definition = sensor_definitions.get(normalized_key, {}).copy()
+
+    if not definition:
+        definition = {
+            "name": f"PID {key}",
+            "unit": None,
+            "icon": "mdi:car-info",
+            "device_class": None,
+            "state_class": None,
+        }
+
+    if restored_name:
+        vehicle_prefix = f"{vehicle_name} "
+        if restored_name.startswith(vehicle_prefix):
+            restored_name = restored_name[len(vehicle_prefix):]
+        definition["name"] = restored_name
+
+    return definition
 
 
 async def async_setup_entry(
@@ -43,17 +89,84 @@ async def async_setup_entry(
         hass.data[DOMAIN][config_entry.entry_id]["vehicle_name"] = vehicle_name
         _LOGGER.debug("Stored async_add_entities callback for entry %s", config_entry.entry_id)
     
-    # Only add the API endpoint sensor upfront
-    sensors = [
+    sensors: list[SensorEntity] = [
         TorqueAPIEndpointSensor(
             hass,
             config_entry.entry_id,
             vehicle_name,
         )
     ]
+
+    if config_entry.entry_id in hass.data.get(DOMAIN, {}):
+        entry_data = hass.data[DOMAIN][config_entry.entry_id]
+        added_sensors = entry_data["added_sensors"]
+        sensor_definitions = hass.data[DOMAIN].get("sensor_definitions", {})
+        unique_id_prefix = f"{DOMAIN}_{config_entry.entry_id}_"
+        api_endpoint_unique_id = f"{unique_id_prefix}api_endpoint"
+
+        entity_registry = er.async_get(hass)
+        registry_entries = er.async_entries_for_config_entry(
+            entity_registry,
+            config_entry.entry_id,
+        )
+
+        restored_sensor_count = 0
+        disabled_sensor_keys: set[str] = set()
+        restored_normalized_keys: set[str] = set()
+
+        for registry_entry in registry_entries:
+            unique_id = registry_entry.unique_id
+            if unique_id == api_endpoint_unique_id or not unique_id.startswith(unique_id_prefix):
+                continue
+
+            key = unique_id.removeprefix(unique_id_prefix)
+            normalized_key = _normalize_pid(key)
+
+            if registry_entry.disabled_by is not None:
+                if normalized_key not in restored_normalized_keys:
+                    disabled_sensor_keys.add(key)
+                    disabled_sensor_keys.add(normalized_key)
+                continue
+
+            if normalized_key in restored_normalized_keys:
+                added_sensors.add(key)
+                added_sensors.add(normalized_key)
+                continue
+
+            restored_name = registry_entry.original_name or registry_entry.name
+            definition = _build_sensor_definition(
+                sensor_definitions,
+                key,
+                vehicle_name,
+                restored_name,
+            )
+
+            sensors.append(
+                TorqueSensor(
+                    hass,
+                    config_entry.entry_id,
+                    email,
+                    vehicle_name,
+                    key,
+                    definition,
+                )
+            )
+            added_sensors.add(key)
+            added_sensors.add(normalized_key)
+            restored_normalized_keys.add(normalized_key)
+            restored_sensor_count += 1
+
+        added_sensors.update(disabled_sensor_keys)
+
+        if restored_sensor_count:
+            _LOGGER.info(
+                "Restored %d Torque sensor(s) from the entity registry for vehicle '%s'",
+                restored_sensor_count,
+                vehicle_name,
+            )
     
     async_add_entities(sensors, True)
-    _LOGGER.debug("Added API endpoint sensor for vehicle '%s'", vehicle_name)
+    _LOGGER.debug("Added %d sensor(s) for vehicle '%s' during setup", len(sensors), vehicle_name)
 
 
 class TorqueSensor(RestoreEntity, SensorEntity):
@@ -76,6 +189,7 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         self._email = email
         self._vehicle_name = vehicle_name
         self._key = key
+        self._lookup_keys = _build_lookup_keys(key)
         self._definition = definition
         
         # Set sensor attributes
@@ -160,36 +274,38 @@ class TorqueSensor(RestoreEntity, SensorEntity):
     @callback
     def _handle_update(self, data: dict[str, Any]) -> None:
         """Handle updated data from Torque."""
-        # Check if this sensor's key is in the data
-        if self._key in data:
-            value = data[self._key]
-            old_value = self._attr_native_value
-            
-            # Try to convert to float
-            try:
-                self._attr_native_value = float(value)
-            except (ValueError, TypeError):
-                self._attr_native_value = value
-            
-            # Log update only if value changed (to avoid spam)
-            if old_value != self._attr_native_value:
-                _LOGGER.debug("Sensor '%s' updated: %s -> %s", self._attr_name, old_value, self._attr_native_value)
-            
-            # Update extra attributes
-            self._attr_extra_state_attributes = {
-                "last_update": datetime.now().isoformat(),
-            }
-            
-            # Add session info if available
-            if "session" in data:
-                self._attr_extra_state_attributes["session"] = data["session"]
-            
-            # Add device ID if available
-            if "id" in data:
-                self._attr_extra_state_attributes["device_id"] = data["id"]
-            
-            # Schedule an update
-            self.async_write_ha_state()
+        payload_key = next((key for key in self._lookup_keys if key in data), None)
+        if payload_key is None:
+            return
+
+        value = data[payload_key]
+        old_value = self._attr_native_value
+        
+        # Try to convert to float
+        try:
+            self._attr_native_value = float(value)
+        except (ValueError, TypeError):
+            self._attr_native_value = value
+        
+        # Log update only if value changed (to avoid spam)
+        if old_value != self._attr_native_value:
+            _LOGGER.debug("Sensor '%s' updated: %s -> %s", self._attr_name, old_value, self._attr_native_value)
+        
+        # Update extra attributes
+        self._attr_extra_state_attributes = {
+            "last_update": datetime.now().isoformat(),
+        }
+        
+        # Add session info if available
+        if "session" in data:
+            self._attr_extra_state_attributes["session"] = data["session"]
+        
+        # Add device ID if available
+        if "id" in data:
+            self._attr_extra_state_attributes["device_id"] = data["id"]
+        
+        # Schedule an update
+        self.async_write_ha_state()
 
 
 class TorqueAPIEndpointSensor(SensorEntity):
