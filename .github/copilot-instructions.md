@@ -58,6 +58,7 @@ Integration-Specific Guidelines
 - Each vehicle configuration creates a unique API endpoint: `/api/torque-{vehicle_name}`
 - Data is received via HTTP POST from the Torque app
 - Sensors are created dynamically based on received data
+- On startup, dynamic sensors must also be restored from the entity registry so Home Assistant keeps providing them before new Torque data arrives
 - Use the PID mappings in const.py for sensor identification
 - Follow Home Assistant's async conventions (use async/await)
 - Use HomeAssistant's aiohttp session for HTTP requests
@@ -83,5 +84,6 @@ Notes for the Agent
 - The integration uses Home Assistant's built-in HTTP capabilities
 - Torque sends data via HTTP POST with form-encoded data
 - Email parameter is optional as Torque doesn't reliably send it
+- Standard PIDs may appear in short (`kd`) or zero-padded (`k0d`) form; treat both as the same sensor key
 - Test changes manually with the Torque Pro Android app when possible
 - Reference Home Assistant developer docs in .github/home-assistant-developer-docs/ for integration patterns
