@@ -111,6 +111,8 @@ async def async_setup_entry(
         )
 
         restored_sensor_count = 0
+        disabled_sensor_keys: set[str] = set()
+        restored_normalized_keys: set[str] = set()
 
         for registry_entry in registry_entries:
             unique_id = registry_entry.unique_id
@@ -121,6 +123,12 @@ async def async_setup_entry(
             normalized_key = _normalize_pid(key)
 
             if registry_entry.disabled_by is not None:
+                if normalized_key not in restored_normalized_keys:
+                    disabled_sensor_keys.add(key)
+                    disabled_sensor_keys.add(normalized_key)
+                continue
+
+            if normalized_key in restored_normalized_keys:
                 added_sensors.add(key)
                 added_sensors.add(normalized_key)
                 continue
@@ -145,7 +153,10 @@ async def async_setup_entry(
             )
             added_sensors.add(key)
             added_sensors.add(normalized_key)
+            restored_normalized_keys.add(normalized_key)
             restored_sensor_count += 1
+
+        added_sensors.update(disabled_sensor_keys)
 
         if restored_sensor_count:
             _LOGGER.info(
