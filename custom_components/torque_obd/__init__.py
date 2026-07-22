@@ -90,7 +90,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     
     # Load sensor definitions (defaults + custom overrides)
-    # Load once and share across all entries
     if "sensor_definitions" not in hass.data[DOMAIN]:
         sensor_definitions = await hass.async_add_executor_job(
             load_sensor_definitions, hass
@@ -98,30 +97,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN]["sensor_definitions"] = sensor_definitions
         _LOGGER.debug("Loaded %d sensor definitions", len(sensor_definitions))
     
-    # Get vehicle name and create URL-safe version
     vehicle_name = entry.data[CONF_VEHICLE_NAME]
     _LOGGER.info("Setting up Torque OBD-II for vehicle '%s' (entry_id: %s)", vehicle_name, entry.entry_id)
-    # Normalize: lowercase, replace spaces with dashes, keep underscores and dashes
-    # Remove any characters that aren't alphanumeric, dash, or underscore
-    url_safe_name = vehicle_name.lower()
-    url_safe_name = url_safe_name.replace(' ', '-')
-    # Remove any remaining invalid characters
+    
+    url_safe_name = vehicle_name.lower().replace(' ', '-')
     url_safe_name = ''.join(c for c in url_safe_name if c.isalnum() or c in '-_')
     api_path = f"/api/torque-{url_safe_name}"
     
-    # Store the config entry data
+    # --- RECUPERO SENSORI ESISTENTI AL RIAVVIO (AGGIUNTO PER LA PR) ---
+    from homeassistant.helpers import entity_registry as er
+    entity_registry = er.async_get(hass)
+    existing_pids = set()
+    
+    # Cerchiamo tutte le entità registrate che appartengono a questa ConfigEntry
+    for entity_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        # L'unique_id è registrato come: f"{DOMAIN}_{entry_id}_{key}"
+        # Estraiamo la parte finale (la chiave PID come 'kd' o 'k0d')
+        prefix = f"{DOMAIN}_{entry.entry_id}_"
+        if entity_entry.unique_id.startswith(prefix):
+            pid_key = entity_entry.unique_id[len(prefix):]
+            if pid_key != "api_endpoint": # Escludiamo l'endpoint diagnostico
+                existing_pids.add(pid_key)
+                # Tracciamo anche la versione normalizzata per sicurezza
+                existing_pids.add(_normalize_pid(pid_key))
+    
+    _LOGGER.info("Found %d pre-existing PIDs in entity registry for %s", len(existing_pids), vehicle_name)
+    # -----------------------------------------------------------------
+
     hass.data[DOMAIN][entry.entry_id] = {
         "email": entry.data.get(CONF_EMAIL, ""),
         "vehicle_name": vehicle_name,
         "api_path": api_path,
         "data": {},
+        "added_sensors": existing_pids, # Passiamo subito i PID storici invece di un set() vuoto
     }
 
-    # Register a unique HTTP API view for this vehicle
     hass.http.register_view(TorqueView(hass, entry.entry_id, api_path))
     _LOGGER.info("Registered HTTP endpoint for '%s' at %s", vehicle_name, api_path)
 
-    # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.debug("Completed setup for Torque OBD-II entry '%s'", vehicle_name)
 
