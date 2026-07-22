@@ -8,6 +8,6 @@
   "issue_tracker": "https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues",
   "iot_class": "local_push",
   "requirements": [],
-  "homeassistant_min_version": "2022.6.0",
+  "homeassistant": "2022.6.0",
   "version": "1.0.0"
 }
