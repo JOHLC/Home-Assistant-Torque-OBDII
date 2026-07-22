@@ -215,7 +215,7 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         self._lookup_keys = _build_lookup_keys(key)
         self._definition = definition
 
-        self._attr_name = definition['name']
+        self._attr_name = definition["name"]
         self._attr_native_unit_of_measurement = definition.get("unit")
         self._attr_icon = definition.get("icon")
 
