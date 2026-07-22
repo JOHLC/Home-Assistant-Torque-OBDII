@@ -1,27 +1,26 @@
 """Support for Torque OBD-II sensors."""
+
 from __future__ import annotations
 
 from datetime import datetime
 import logging
+import math
 from typing import Any
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import network
+from homeassistant.helpers import entity_registry as er, network
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from . import _normalize_pid
 from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -63,7 +62,7 @@ def _build_sensor_definition(
     if restored_name:
         vehicle_prefix = f"{vehicle_name} "
         if restored_name.startswith(vehicle_prefix):
-            restored_name = restored_name[len(vehicle_prefix):]
+            restored_name = restored_name[len(vehicle_prefix) :]
         definition["name"] = restored_name
 
     return definition
@@ -77,147 +76,119 @@ async def async_setup_entry(
     """Set up Torque sensors based on a config entry."""
     email = config_entry.data.get(CONF_EMAIL, "")
     vehicle_name = config_entry.data[CONF_VEHICLE_NAME]
-    
+
     _LOGGER.info("Setting up Torque sensor platform for vehicle '%s'", vehicle_name)
-    
-    if config_entry.entry_id in hass.data.get(DOMAIN, {}):
-        # Recuperiamo i sensori pre-esistenti che abbiamo trovato in __init__.py
-        entry_data = hass.data[DOMAIN][config_entry.entry_id]
-        existing_pids = entry_data.get("added_sensors", set())
-        sensor_definitions = hass.data[DOMAIN].get("sensor_definitions", {})
-        
-        # Manteniamo i callback originali per i nuovi sensori dinamici futuri
-        entry_data["async_add_entitiesnormalized_key = _normalize_pid(pid)"] = async_add_entities
-        entry_data["email"] = email
-        entry_data["vehicle_name"] = vehicle_name
-        _LOGGER.debug("Stored async_add_entities callback for entry %s", config_entry.entry_id)
-    
+
+    sensor_definitions = hass.data.get(DOMAIN, {}).get("sensor_definitions", {})
+    if not sensor_definitions:
+        _LOGGER.warning(
+            "Sensor definitions not found during sensor setup for %s. "
+            "This is unexpected - definitions should be loaded in __init__.py",
+            vehicle_name,
+        )
+
+    hass.data.setdefault(DOMAIN, {}).setdefault(config_entry.entry_id, {})
+    entry_data = hass.data[DOMAIN][config_entry.entry_id]
+    added_sensors = entry_data.get("added_sensors")
+    if not isinstance(added_sensors, set):
+        added_sensors = set(added_sensors or [])
+
+    entry_data.update(
+        {
+            "async_add_entities": async_add_entities,
+            "added_sensors": added_sensors,
+            "email": email,
+            "vehicle_name": vehicle_name,
+        }
+    )
+
     sensors: list[SensorEntity] = [
         TorqueAPIEndpointSensor(
             hass,
             config_entry.entry_id,
             vehicle_name,
         ),
-        # AGGIUNTO PER LA PR: Crea il sensore di timestamp globale all'avvio
         TorqueLastUpdateSensor(
             hass,
             config_entry.entry_id,
             vehicle_name,
-        )
+        ),
     ]
 
-    if config_entry.entry_id in hass.data.get(DOMAIN, {}):
-        entry_data = hass.data[DOMAIN][config_entry.entry_id]
-        added_sensors = entry_data["added_sensors"]
-        sensor_definitions = hass.data[DOMAIN].get("sensor_definitions", {})
-        unique_id_prefix = f"{DOMAIN}_{config_entry.entry_id}_"
-        api_endpoint_unique_id = f"{unique_id_prefix}api_endpoint"
+    unique_id_prefix = f"{DOMAIN}_{config_entry.entry_id}_"
+    skipped_unique_ids = {
+        f"{unique_id_prefix}api_endpoint",
+        f"{unique_id_prefix}last_torque_update",
+    }
+    entity_registry = er.async_get(hass)
+    registry_entries = er.async_entries_for_config_entry(
+        entity_registry,
+        config_entry.entry_id,
+    )
 
-        entity_registry = er.async_get(hass)
-        registry_entries = er.async_entries_for_config_entry(
-            entity_registry,
-            config_entry.entry_id,
-        )
+    restored_sensor_count = 0
+    disabled_sensor_keys: set[str] = set()
+    restored_normalized_keys: set[str] = set()
 
-        restored_sensor_count = 0
-        disabled_sensor_keys: set[str] = set()
-        restored_normalized_keys: set[str] = set()
-
-        for registry_entry in registry_entries:
-            unique_id = registry_entry.unique_id
-            if unique_id == api_endpoint_unique_id or not unique_id.startswith(unique_id_prefix):
-                continue
-
-            key = unique_id.removeprefix(unique_id_prefix)
-            normalized_key = _normalize_pid(key)
-
-            if registry_entry.disabled_by is not None:
-                if normalized_key not in restored_normalized_keys:
-                    disabled_sensor_keys.add(key)
-                    disabled_sensor_keys.add(normalized_key)
-                continue
-
-            if normalized_key in restored_normalized_keys:
-                added_sensors.add(key)
-                added_sensors.add(normalized_key)
-                continue
-
-            restored_name = registry_entry.original_name or registry_entry.name
-            definition = _build_sensor_definition(
-                sensor_definitions,
-                key,
-                vehicle_name,
-                restored_name,
-            )
-
-            sensors.append(
-                TorqueSensor(
-                    hass,
-                    config_entry.entry_id,
-                    email,
-                    vehicle_name,
-                    key,
-                    definition,
-                )
-            )
-            added_sensors.add(key)
-            added_sensors.add(normalized_key)
-            restored_normalized_keys.add(normalized_key)
-            restored_sensor_count += 1
-
-        added_sensors.update(disabled_sensor_keys)
-
-        if restored_sensor_count:
-            _LOGGER.info(
-                "Restored %d Torque sensor(s) from the entity registry for vehicle '%s'",
-                restored_sensor_count,
-                vehicle_name,
-            )
-    
-    
-    # --- CARICAMENTO IMMEDIATO DEI SENSORI STORICI (AGGIUNTO PER LA PR) ---
-    # Creiamo istantaneamente le entità per i PID già registrati in passato
-    # usando le definizioni caricate, così RestoreEntity può recuperare i valori.
-    unique_pids_processed = set()
-    for pid in existing_pids:
-        # Poiché nel set abbiamo sia la chiave originale sia quella normalizzata,
-        # elaboriamo solo una volta per PID per evitare duplicati nello startup
-        if pid in unique_pids_processed:
+    for registry_entry in registry_entries:
+        unique_id = registry_entry.unique_id
+        if unique_id in skipped_unique_ids or not unique_id.startswith(unique_id_prefix):
             continue
-            
-        normalized_key = _normalize_pid(pid)
-        
-        if normalized_key in sensor_definitions:
-            definition = sensor_definitions[normalized_key].copy()
-        else:
-            definition = {
-                "name": f"PID {pid}",
-                "unit": None,
-                "icon": "mdi:car-info",
-                "device_class": None,
-                "state_class": None,
-            }
-            
-        # Nota: usiamo pid come chiave originale. 
-        # Se l'unique id è stato generato con la chiave originale, verrà mantenuto intatto.
-        sensor = TorqueSensor(
-            hass,
-            config_entry.entry_id,
-            email,
+
+        key = unique_id.removeprefix(unique_id_prefix)
+        normalized_key = _normalize_pid(key)
+
+        if registry_entry.disabled_by is not None:
+            disabled_sensor_keys.update({key, normalized_key})
+            continue
+
+        if normalized_key in restored_normalized_keys:
+            added_sensors.update({key, normalized_key})
+            continue
+
+        definition = _build_sensor_definition(
+            sensor_definitions,
+            key,
             vehicle_name,
-            pid,
-            definition,
+            registry_entry.name or registry_entry.original_name,
         )
-        sensors.append(sensor)
-        unique_pids_processed.add(pid)
-        unique_pids_processed.add(normalized_key)
-        
-    _LOGGER.info("Instantiating %d pre-existing Torque sensors upfront", len(unique_pids_processed) // 2 if unique_pids_processed else 0)
-    # ----------------------------------------------------------------------
-    
-    # Aggiunge l'endpoint + tutti i sensori storici ripristinati in un colpo solo
+
+        sensors.append(
+            TorqueSensor(
+                hass,
+                config_entry.entry_id,
+                email,
+                vehicle_name,
+                key,
+                definition,
+            )
+        )
+        added_sensors.update({key, normalized_key})
+        restored_normalized_keys.add(normalized_key)
+        restored_sensor_count += 1
+        _LOGGER.debug(
+            "Restoring sensor '%s' (PID: %s, normalized: %s) for vehicle '%s'",
+            definition["name"],
+            key,
+            normalized_key,
+            vehicle_name,
+        )
+
+    added_sensors.update(disabled_sensor_keys)
+
+    if restored_sensor_count:
+        _LOGGER.info(
+            "Restored %d Torque sensor(s) from the entity registry for vehicle '%s'",
+            restored_sensor_count,
+            vehicle_name,
+        )
+
     async_add_entities(sensors, True)
-    _LOGGER.debug("Added %d sensor(s) for vehicle '%s' during setup", len(sensors), vehicle_name)
+    _LOGGER.debug(
+        "Added %d total sensor(s) for vehicle '%s' during setup",
+        len(sensors),
+        vehicle_name,
+    )
 
 
 class TorqueSensor(RestoreEntity, SensorEntity):
@@ -242,34 +213,28 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         self._key = key
         self._lookup_keys = _build_lookup_keys(key)
         self._definition = definition
-        
-        # Set sensor attributes
-        # Prefix sensor name with vehicle name for proper entity ID generation
+
         self._attr_name = f"{vehicle_name} {definition['name']}"
         self._attr_native_unit_of_measurement = definition.get("unit")
         self._attr_icon = definition.get("icon")
-        
-        # Set device class if specified
+
         if definition.get("device_class"):
             self._attr_device_class = definition["device_class"]
-        
-        # Set state class if specified
+
         if definition.get("state_class"):
             self._attr_state_class = definition["state_class"]
-        
-        # Set default precision of 2 decimal places for numeric sensors
-        # This can be overridden by users in the UI
+
         self._attr_suggested_display_precision = 2
-        
-        # Generate unique ID using entry_id for uniqueness
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_{key}"
-        
-        # Set initial state
         self._attr_native_value = None
         self._attr_extra_state_attributes = {}
-        
-        _LOGGER.debug("Initialized sensor '%s' (PID: %s) for vehicle '%s'", 
-                     self._attr_name, key, vehicle_name)
+
+        _LOGGER.debug(
+            "Initialized sensor '%s' (PID: %s) for vehicle '%s'",
+            self._attr_name,
+            key,
+            vehicle_name,
+        )
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -284,23 +249,41 @@ class TorqueSensor(RestoreEntity, SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
-        
-        _LOGGER.info("Added sensor '%s' (PID: %s) for vehicle '%s' to Home Assistant", self._attr_name, self._key, self._vehicle_name)
-        
-        # Restore previous state if available
+
+        _LOGGER.debug(
+            "Added sensor '%s' (PID: %s) for vehicle '%s' to Home Assistant",
+            self._attr_name,
+            self._key,
+            self._vehicle_name,
+        )
+
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state not in (None, STATE_UNKNOWN, STATE_UNAVAILABLE):
-            _LOGGER.debug("Restoring previous state for sensor '%s': %s", self._attr_name, last_state.state)
-            
-            # Restore the native value
+        if last_state is not None and last_state.state not in (
+            None,
+            STATE_UNKNOWN,
+            STATE_UNAVAILABLE,
+        ):
+            _LOGGER.debug(
+                "Restoring previous state for sensor '%s': %s",
+                self._attr_name,
+                last_state.state,
+            )
+
             try:
-                self._attr_native_value = float(last_state.state)
+                restored_value = float(last_state.state)
+                if not math.isfinite(restored_value):
+                    _LOGGER.debug(
+                        "Sensor '%s' had non-finite restored state '%s', setting to None",
+                        self._attr_name,
+                        last_state.state,
+                    )
+                    self._attr_native_value = None
+                else:
+                    self._attr_native_value = restored_value
             except (ValueError, TypeError):
                 self._attr_native_value = last_state.state
-            
-            # Restore only custom extra state attributes (not HA internal attributes)
+
             if last_state.attributes:
-                # Only restore our custom attributes that we set in _handle_update
                 custom_attrs = {}
                 if "last_update" in last_state.attributes:
                     custom_attrs["last_update"] = last_state.attributes["last_update"]
@@ -308,15 +291,21 @@ class TorqueSensor(RestoreEntity, SensorEntity):
                     custom_attrs["session"] = last_state.attributes["session"]
                 if "device_id" in last_state.attributes:
                     custom_attrs["device_id"] = last_state.attributes["device_id"]
-                
+
                 if custom_attrs:
                     self._attr_extra_state_attributes = custom_attrs
-                    _LOGGER.debug("Restored attributes for sensor '%s': %s", self._attr_name, self._attr_extra_state_attributes)
+                    _LOGGER.debug(
+                        "Restored attributes for sensor '%s': %s",
+                        self._attr_name,
+                        self._attr_extra_state_attributes,
+                    )
 
-            # CHIAMATA CRUCIALE MANCANTE: Dice a HA di scrivere lo stato appena recuperato nel core
             self.async_write_ha_state()
-        
-        # Register callback for data updates
+            _LOGGER.debug(
+                "Wrote restored state to Home Assistant for sensor '%s'",
+                self._attr_name,
+            )
+
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -334,31 +323,39 @@ class TorqueSensor(RestoreEntity, SensorEntity):
 
         value = data[payload_key]
         old_value = self._attr_native_value
-        
-        # Try to convert to float
+
         try:
-            self._attr_native_value = float(value)
+            converted_value = float(value)
+            if not math.isfinite(converted_value):
+                _LOGGER.debug(
+                    "Sensor '%s' received non-finite value '%s', setting to None",
+                    self._attr_name,
+                    value,
+                )
+                self._attr_native_value = None
+            else:
+                self._attr_native_value = converted_value
         except (ValueError, TypeError):
             self._attr_native_value = value
-        
-        # Log update only if value changed (to avoid spam)
+
         if old_value != self._attr_native_value:
-            _LOGGER.debug("Sensor '%s' updated: %s -> %s", self._attr_name, old_value, self._attr_native_value)
-        
-        # Update extra attributes
+            _LOGGER.debug(
+                "Sensor '%s' updated: %s -> %s",
+                self._attr_name,
+                old_value,
+                self._attr_native_value,
+            )
+
         self._attr_extra_state_attributes = {
-            "last_update": datetime.now().isoformat(),
+            "last_update": dt_util.utcnow().isoformat(),
         }
-        
-        # Add session info if available
+
         if "session" in data:
             self._attr_extra_state_attributes["session"] = data["session"]
-        
-        # Add device ID if available
+
         if "id" in data:
             self._attr_extra_state_attributes["device_id"] = data["id"]
-        
-        # Schedule an update
+
         self.async_write_ha_state()
 
 
@@ -379,12 +376,10 @@ class TorqueAPIEndpointSensor(SensorEntity):
         self.hass = hass
         self._entry_id = entry_id
         self._vehicle_name = vehicle_name
-        
-        # Set sensor attributes
-        # Prefix sensor name with vehicle name for proper entity ID generation
+
         self._attr_name = f"{vehicle_name} API Endpoint"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_api_endpoint"
-        
+
         _LOGGER.debug("Initialized API endpoint sensor for vehicle '%s'", vehicle_name)
 
     @property
@@ -400,17 +395,18 @@ class TorqueAPIEndpointSensor(SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
-        
-        _LOGGER.info("Added API endpoint sensor for vehicle '%s' to Home Assistant", self._vehicle_name)
-        
-        # Get the API path from hass.data and set it as the sensor value
+
+        _LOGGER.info(
+            "Added API endpoint sensor for vehicle '%s' to Home Assistant",
+            self._vehicle_name,
+        )
+
         if self._entry_id in self.hass.data.get(DOMAIN, {}):
             api_path = self.hass.data[DOMAIN][self._entry_id].get("api_path", "")
             if api_path:
                 try:
                     base_url = network.get_url(self.hass)
                 except network.NoURLAvailableError:
-                    # Fallback if no URL is configured
                     _LOGGER.warning(
                         "No Home Assistant URL is available for the API endpoint sensor. "
                         "API endpoint sensor will only show the path. "
@@ -419,12 +415,17 @@ class TorqueAPIEndpointSensor(SensorEntity):
                     self._attr_native_value = api_path
                 else:
                     self._attr_native_value = f"{base_url.rstrip('/')}{api_path}"
-                    _LOGGER.info("API endpoint URL for '%s': %s", self._vehicle_name, self._attr_native_value)
+                    _LOGGER.info(
+                        "API endpoint URL for '%s': %s",
+                        self._vehicle_name,
+                        self._attr_native_value,
+                    )
 
                 self.async_write_ha_state()
             else:
                 _LOGGER.error(
-                    "API path not found in hass.data for entry_id %s", self._entry_id
+                    "API path not found in hass.data for entry_id %s",
+                    self._entry_id,
                 )
         else:
             _LOGGER.error(
@@ -432,6 +433,7 @@ class TorqueAPIEndpointSensor(SensorEntity):
                 self._entry_id,
                 DOMAIN,
             )
+
 
 class TorqueLastUpdateSensor(RestoreEntity, SensorEntity):
     """Sensor that displays the last time Torque successfully pushed data."""
@@ -451,8 +453,8 @@ class TorqueLastUpdateSensor(RestoreEntity, SensorEntity):
         self.hass = hass
         self._entry_id = entry_id
         self._vehicle_name = vehicle_name
-        
-        self._attr_name = f"{vehicle_name} Ultimo Aggiornamento Torque"
+
+        self._attr_name = f"{vehicle_name} Last Torque Update"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_last_torque_update"
         self._attr_native_value = None
 
@@ -469,18 +471,22 @@ class TorqueLastUpdateSensor(RestoreEntity, SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
-        
-        # Ripristina l'ultimo timestamp salvato prima del riavvio
+
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state not in (None, STATE_UNKNOWN, STATE_UNAVAILABLE):
+        if last_state is not None and last_state.state not in (
+            None,
+            STATE_UNKNOWN,
+            STATE_UNAVAILABLE,
+        ):
             try:
-                # Home Assistant memorizza i timestamp come stringhe ISO, li convertiamo in datetime
                 self._attr_native_value = datetime.fromisoformat(last_state.state)
                 self.async_write_ha_state()
             except (ValueError, TypeError):
-                _LOGGER.error("Errore nel ripristino del timestamp per il sensore ultimo aggiornamento")
+                _LOGGER.error(
+                    "Failed to restore the last update timestamp for vehicle '%s'",
+                    self._vehicle_name,
+                )
 
-        # Ascolta i pacchetti in arrivo da Torque per aggiornare il timestamp in tempo reale
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -492,7 +498,5 @@ class TorqueLastUpdateSensor(RestoreEntity, SensorEntity):
     @callback
     def _handle_update(self, data: dict[str, Any]) -> None:
         """Update the sensor with the current timestamp when a push occurs."""
-        # Usiamo il tempo tracciato dal server di Home Assistant, localizzato correttamente
-        from homeassistant.util import dt as dt_util
         self._attr_native_value = dt_util.utcnow()
         self.async_write_ha_state()
