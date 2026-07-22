@@ -195,6 +195,7 @@ class TorqueSensor(RestoreEntity, SensorEntity):
     """Representation of a Torque OBD-II sensor."""
 
     _attr_should_poll = False
+    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -214,7 +215,7 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         self._lookup_keys = _build_lookup_keys(key)
         self._definition = definition
 
-        self._attr_name = f"{vehicle_name} {definition['name']}"
+        self._attr_name = definition["name"]
         self._attr_native_unit_of_measurement = definition.get("unit")
         self._attr_icon = definition.get("icon")
 
@@ -365,6 +366,7 @@ class TorqueAPIEndpointSensor(SensorEntity):
     _attr_should_poll = False
     _attr_icon = "mdi:api"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -377,7 +379,7 @@ class TorqueAPIEndpointSensor(SensorEntity):
         self._entry_id = entry_id
         self._vehicle_name = vehicle_name
 
-        self._attr_name = f"{vehicle_name} API Endpoint"
+        self._attr_name = "API Endpoint"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_api_endpoint"
 
         _LOGGER.debug("Initialized API endpoint sensor for vehicle '%s'", vehicle_name)
@@ -442,6 +444,7 @@ class TorqueLastUpdateSensor(RestoreEntity, SensorEntity):
     _attr_icon = "mdi:clock-check-outline"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -454,7 +457,7 @@ class TorqueLastUpdateSensor(RestoreEntity, SensorEntity):
         self._entry_id = entry_id
         self._vehicle_name = vehicle_name
 
-        self._attr_name = f"{vehicle_name} Last Torque Update"
+        self._attr_name = "Last Torque Update"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_last_torque_update"
         self._attr_native_value = None
 
