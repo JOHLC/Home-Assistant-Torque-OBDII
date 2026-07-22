@@ -13,6 +13,8 @@
 - Example sensor definitions file with detailed comments
 
 ### Fixed
+- HACS installs now expose the default branch again to avoid failed zip downloads for repository versions
+- API endpoint sensors now use Home Assistant's URL helper so configured or auto-detected instance URLs are resolved more reliably
 - **Corrected PID Mappings** to match standard OBD-II specifications with proper leading zeros:
   - Fixed single-digit hex PIDs to include leading zero (e.g., `k5` → `k05`, `kc` → `k0c`, `kd` → `k0d`, `kf` → `k0f`)
   - Corrected GPS sensor mappings to match reference table:

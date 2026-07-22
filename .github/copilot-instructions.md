@@ -82,6 +82,7 @@ Notes for the Agent
 - This integration has no external Python dependencies (requirements: [] in manifest.json)
 - Do not add unnecessary dependencies
 - The integration uses Home Assistant's built-in HTTP capabilities
+- Use `homeassistant.helpers.network.get_url()` when building the API endpoint sensor URL instead of reading `hass.config.internal_url` / `external_url` directly
 - Torque sends data via HTTP POST with form-encoded data
 - Email parameter is optional as Torque doesn't reliably send it
 - Standard PIDs may appear in short (`kd`) or zero-padded (`k0d`) form; treat both as the same sensor key
