@@ -13,7 +13,8 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import network
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -406,20 +407,20 @@ class TorqueAPIEndpointSensor(SensorEntity):
         if self._entry_id in self.hass.data.get(DOMAIN, {}):
             api_path = self.hass.data[DOMAIN][self._entry_id].get("api_path", "")
             if api_path:
-                # Get the base URL from Home Assistant
-                base_url = self.hass.config.external_url or self.hass.config.internal_url
-                if base_url:
-                    self._attr_native_value = f"{base_url}{api_path}"
-                    _LOGGER.info("API endpoint URL for '%s': %s", self._vehicle_name, self._attr_native_value)
-                else:
+                try:
+                    base_url = network.get_url(self.hass)
+                except network.NoURLAvailableError:
                     # Fallback if no URL is configured
                     _LOGGER.warning(
-                        "No external or internal URL configured for Home Assistant. "
+                        "No Home Assistant URL is available for the API endpoint sensor. "
                         "API endpoint sensor will only show the path. "
                         "Configure a URL in Settings -> System -> Network."
                     )
                     self._attr_native_value = api_path
-                
+                else:
+                    self._attr_native_value = f"{base_url.rstrip('/')}{api_path}"
+                    _LOGGER.info("API endpoint URL for '%s': %s", self._vehicle_name, self._attr_native_value)
+
                 self.async_write_ha_state()
             else:
                 _LOGGER.error(
