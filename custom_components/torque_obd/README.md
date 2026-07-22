@@ -59,6 +59,7 @@ Each vehicle gets its own unique API endpoint based on the vehicle name you conf
    - **Web Upload URL**: Use the unique endpoint shown in Home Assistant after configuration
    - **Email Address**: Optional (Torque does not reliably send this field)
    - **Enable Logging**: Turn on
+   - If you use **HTTPS**, prefer a reverse proxy on standard port **443** with a **publicly trusted certificate**. Torque may silently refuse self-signed or privately issued certificates even if the same URL works in a browser.
 5. Select the PIDs you want to log
 6. Save settings
 7. **⚠️ CRITICAL - First Time Setup**: After configuring both Home Assistant and Torque for the first time:
@@ -95,6 +96,8 @@ Or if using SSL:
 ```
 https://your-domain.com/api/torque-2025-ford-escape
 ```
+
+When using HTTPS, a successful browser test or manual POST does **not** guarantee Torque will upload successfully. If Torque's **Web Upload Status** shows queued items, **0 items sent**, and Home Assistant logs stay empty, Torque usually rejected the TLS certificate before sending the request. Test with local `http://` first, or use HTTPS on port 443 with a publicly trusted certificate.
 
 ## Sensors
 
@@ -271,6 +274,11 @@ If you need to expose Home Assistant externally, consider using:
    - Ensure your Android device can reach Home Assistant
    - Try accessing `http://YOUR_HA_IP:8123` in a browser on your Android device
    - Check firewall settings
+
+5. **Interpret Torque's Web Upload Status**:
+   - **Queued items increasing, 0 items sent, last message empty** usually means Torque never completed the upload
+   - If manual POSTs still work, the integration is fine and the problem is usually TLS/certificate trust, reverse proxy routing, or the app not actually attempting the upload
+   - Test with local `http://` first, then move back to HTTPS after confirming uploads work
 
 #### Sensors Show "Unavailable"
 
