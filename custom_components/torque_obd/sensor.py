@@ -454,7 +454,7 @@ class TorqueLastUpdateSensor(RestoreEntity, SensorEntity):
         self._entry_id = entry_id
         self._vehicle_name = vehicle_name
 
-        self._attr_name = f"{vehicle_name} Ultimo Aggiornamento Torque"
+        self._attr_name = f"{vehicle_name} Last Torque Update"
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_last_torque_update"
         self._attr_native_value = None
 
