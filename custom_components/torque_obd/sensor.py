@@ -347,7 +347,7 @@ class TorqueSensor(RestoreEntity, SensorEntity):
             )
 
         self._attr_extra_state_attributes = {
-            "last_update": datetime.now().isoformat(),
+            "last_update": dt_util.utcnow().isoformat(),
         }
 
         if "session" in data:
