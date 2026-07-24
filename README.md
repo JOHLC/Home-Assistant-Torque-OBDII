@@ -4,8 +4,13 @@
   <img src="https://brands.home-assistant.io/_/torque/logo@2x.png" alt="Torque OBD Logo" width="300" />
 </p>
 
-[![Validate with hassfest](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/workflows/Validate%20with%20hassfest/badge.svg)](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/actions)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=JOHLC&repository=Home-Assistant-Torque-OBDII&category=Integration)
+![Requires Home Assistant](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FJOHLC%2FHome-Assistant-Torque-OBDII%2Fmain%2Fhacs.json&query=%24.homeassistant&label=Requires%20Home%20Assistant&color=41BDF5&logo=homeassistant&logoColor=white)
+![GitHub Release](https://img.shields.io/github/v/release/JOHLC/Home-Assistant-Torque-OBDII?color=blue&label=Release)
+![GitHub Repo stars](https://img.shields.io/github/stars/JOHLC/Home-Assistant-Torque-OBDII)
 
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=JOHLC&repository=Home-Assistant-Torque-OBDII&category=Integration)
 
 A fully functional Home Assistant custom integration for receiving vehicle data from the Torque Pro Android application via OBD-II.
 
