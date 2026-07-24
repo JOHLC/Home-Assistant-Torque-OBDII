@@ -1,12 +1,29 @@
 # Home Assistant Torque OBD-II Integration
+<p align="center">
+  <img src="https://raw.githubusercontent.com/home-assistant/brands/refs/heads/master/custom_integrations/torque_logger/icon%402x.png" alt="Torque OBD Logo" width="125" />
+  <img src="https://brands.home-assistant.io/_/torque/logo@2x.png" alt="Torque OBD Logo" width="300" />
+</p>
 
 [![Validate with hassfest](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/workflows/Validate%20with%20hassfest/badge.svg)](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/actions)
 
+
 A fully functional Home Assistant custom integration for receiving vehicle data from the Torque Pro Android application via OBD-II.
+
+**⚡️ Modern rewrite of the Torque logger integration for Home Assistant.**<br>
+
+> **🤖 Disclosure: AI-Powered**<br>
+> This integration is maintained and improved with the help of GitHub Copilot among various other AI assistants.<br>
+> I am not a Python coder by any means. Community feedback, contributions, and code reviews are welcome!
 
 ## Overview
 
 This integration allows you to monitor real-time vehicle diagnostics data from your car's OBD-II port directly in Home Assistant. The Torque Pro Android app collects data from your vehicle and sends it to Home Assistant via HTTP, where it's converted into sensors you can use in automations, dashboards, and more.
+
+
+
+Bring your car's real-time OBD-II data into Home Assistant using the [Torque Pro](https://torque-bhp.com/) app.<br>
+This integration creates sensors for every OBD-II PID that your car reports, enabling automation, visualization, and monitoring of your vehicle.
+
 
 ## Features
 
