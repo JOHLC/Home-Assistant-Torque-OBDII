@@ -83,7 +83,7 @@ This integration creates sensors for every OBD-II PID that your car reports, ena
 
 Each vehicle gets its own unique API endpoint based on the name you configured.
 
-> **Home Assistant must be reachable from your phone** at the time Torque uploads data. Uploads occur live while Torque is running and connected; there is no buffering or replay. If the connection is unavailable during a session, data sent during that outage is lost permanently.
+> **Home Assistant should be reachable from your phone** at the time Torque uploads data. Torque uploads periodically while it is running and connected. If the connection is unavailable, Torque may queue items (see **Web Upload Status**), but uploads are best-effort and some data may be dropped.
 
 1. Open the **Torque** app on your Android device
 2. Go to **Settings** → **Data Logging & Upload**
