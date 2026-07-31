@@ -15,7 +15,7 @@ Repository Structure
   - manifest.json - Integration metadata
   - README.md - Detailed setup and configuration guide
   - ARCHITECTURE.md - Technical architecture documentation
-- tests/ - Example payload data (no automated tests currently)
+- tests/ - Pytest-based automated tests and example payload data
 - examples/ - Example configurations
 - PIDS.md - Comprehensive PID reference guide (205+ PIDs documented)
 - TROUBLESHOOTING.md - Complete troubleshooting guide
@@ -37,7 +37,12 @@ This is a Home Assistant custom component. For development:
    - Install Home Assistant's hassfest validator: pip install homeassistant[validation]
    - Run validation: python -m homeassistant.scripts.hassfest validate --integration-path custom_components/torque_obd
 
-3. For linting (if needed):
+3. For automated tests:
+   - Install test tools: pip install homeassistant==2025.1.4 pytest
+   - Run tests: pytest -q tests
+   - GitHub Actions runs the same pytest suite via .github/workflows/tests.yml
+
+4. For linting (if needed):
    - Install tools: pip install black flake8 pylint
    - Format code: black custom_components/
    - Lint: flake8 custom_components/ or pylint custom_components/
