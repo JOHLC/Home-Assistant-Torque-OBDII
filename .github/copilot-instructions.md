@@ -95,3 +95,5 @@ Notes for the Agent
 - Standard PIDs may appear in short (`kd`) or zero-padded (`k0d`) form; treat both as the same sensor key
 - Test changes manually with the Torque Pro Android app when possible
 - Reference Home Assistant developer docs in .github/home-assistant-developer-docs/ for integration patterns
+- HA never updates `original_name` in the entity registry automatically after initial registration; to fix a stored name, call `entity_registry.async_update_entity(entity_id, original_name=new_name)` explicitly
+- Entity ID migration (e.g. removing duplicate device name prefix) must be done via `entity_registry.async_update_entity(entity_id, new_entity_id=..., original_name=...)` at setup time; see `_migrate_entity_registry_names()` in sensor.py for the pattern

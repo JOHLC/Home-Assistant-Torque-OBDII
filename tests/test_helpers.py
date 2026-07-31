@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, call, patch
+
 import pytest
 
 from custom_components.torque_obd import _extract_name_from_value, _normalize_pid
-from custom_components.torque_obd.const import SENSOR_DEFINITIONS
+from custom_components.torque_obd.const import DOMAIN, SENSOR_DEFINITIONS
 from custom_components.torque_obd.sensor import (
     _build_lookup_keys,
     _build_sensor_definition,
+    _migrate_entity_registry_names,
 )
 
 
@@ -103,3 +106,235 @@ def test_build_sensor_definition_falls_back_for_unknown_pid() -> None:
         "device_class": None,
         "state_class": None,
     }
+
+
+# ---------------------------------------------------------------------------
+# _migrate_entity_registry_names tests
+# ---------------------------------------------------------------------------
+
+def _make_registry_entry(
+    entity_id: str,
+    unique_id: str,
+    original_name: str | None = None,
+    name: str | None = None,
+    disabled_by: object = None,
+) -> MagicMock:
+    """Create a minimal RegistryEntry-like mock."""
+    entry = MagicMock()
+    entry.entity_id = entity_id
+    entry.unique_id = unique_id
+    entry.original_name = original_name
+    entry.name = name
+    entry.disabled_by = disabled_by
+    return entry
+
+
+def _make_registry(existing_ids: set[str] | None = None) -> MagicMock:
+    """Create a minimal EntityRegistry mock."""
+    registry = MagicMock()
+    existing_ids = existing_ids or set()
+
+    def _async_get(entity_id: str):
+        return MagicMock() if entity_id in existing_ids else None
+
+    registry.async_get.side_effect = _async_get
+    return registry
+
+
+def test_migrate_entity_registry_names_strips_prefix_and_renames_entity_id() -> None:
+    """Entries whose original_name starts with the vehicle prefix are migrated."""
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    skipped = {f"{unique_id_prefix}api_endpoint", f"{unique_id_prefix}last_torque_update"}
+    vehicle_name = "2025 Ford Escape"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.2025_ford_escape_2025_ford_escape_fuel_level",
+            unique_id=f"{unique_id_prefix}k2f",
+            original_name="2025 Ford Escape Fuel Level",
+        ),
+        _make_registry_entry(
+            entity_id="sensor.2025_ford_escape_2025_ford_escape_engine_rpm",
+            unique_id=f"{unique_id_prefix}k0c",
+            original_name="2025 Ford Escape Engine RPM",
+        ),
+    ]
+
+    registry = _make_registry()
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, skipped, vehicle_name
+    )
+
+    assert count == 2
+    assert registry.async_update_entity.call_count == 2
+    registry.async_update_entity.assert_any_call(
+        "sensor.2025_ford_escape_2025_ford_escape_fuel_level",
+        original_name="Fuel Level",
+        new_entity_id="sensor.2025_ford_escape_fuel_level",
+    )
+    registry.async_update_entity.assert_any_call(
+        "sensor.2025_ford_escape_2025_ford_escape_engine_rpm",
+        original_name="Engine RPM",
+        new_entity_id="sensor.2025_ford_escape_engine_rpm",
+    )
+
+
+def test_migrate_entity_registry_names_skips_already_correct_entries() -> None:
+    """Entries whose original_name has no vehicle prefix are left untouched."""
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    skipped: set[str] = set()
+    vehicle_name = "Family Car"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.family_car_fuel_level",
+            unique_id=f"{unique_id_prefix}k2f",
+            original_name="Fuel Level",  # Already correct — no prefix
+        ),
+    ]
+
+    registry = _make_registry()
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, skipped, vehicle_name
+    )
+
+    assert count == 0
+    registry.async_update_entity.assert_not_called()
+
+
+def test_migrate_entity_registry_names_skips_none_original_name() -> None:
+    """Entries without an original_name are skipped safely."""
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    vehicle_name = "Family Car"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.family_car_something",
+            unique_id=f"{unique_id_prefix}k0c",
+            original_name=None,
+        ),
+    ]
+
+    registry = _make_registry()
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, set(), vehicle_name
+    )
+
+    assert count == 0
+    registry.async_update_entity.assert_not_called()
+
+
+def test_migrate_entity_registry_names_skips_special_entries() -> None:
+    """api_endpoint and last_torque_update entries are never touched."""
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    skipped = {f"{unique_id_prefix}api_endpoint", f"{unique_id_prefix}last_torque_update"}
+    vehicle_name = "My Car"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.my_car_api_endpoint",
+            unique_id=f"{unique_id_prefix}api_endpoint",
+            original_name="My Car API Endpoint",
+        ),
+        _make_registry_entry(
+            entity_id="sensor.my_car_last_torque_update",
+            unique_id=f"{unique_id_prefix}last_torque_update",
+            original_name="My Car Last Torque Update",
+        ),
+    ]
+
+    registry = _make_registry()
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, skipped, vehicle_name
+    )
+
+    assert count == 0
+    registry.async_update_entity.assert_not_called()
+
+
+def test_migrate_entity_registry_names_case_insensitive_prefix_match() -> None:
+    """Vehicle prefix stripping is case-insensitive."""
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    vehicle_name = "Family Car"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.family_car_family_car_speed",
+            unique_id=f"{unique_id_prefix}k0d",
+            original_name="FAMILY CAR Speed",  # Upper-case prefix
+        ),
+    ]
+
+    registry = _make_registry()
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, set(), vehicle_name
+    )
+
+    assert count == 1
+    registry.async_update_entity.assert_called_once_with(
+        "sensor.family_car_family_car_speed",
+        original_name="Speed",
+        new_entity_id="sensor.family_car_speed",
+    )
+
+
+def test_migrate_entity_registry_names_skips_entity_id_rename_when_target_taken() -> None:
+    """If the expected entity_id is occupied by a different entity, only original_name is fixed."""
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    vehicle_name = "My Car"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.my_car_my_car_speed",
+            unique_id=f"{unique_id_prefix}k0d",
+            original_name="My Car Speed",
+        ),
+    ]
+
+    # Target entity_id is already occupied by a *different* entity
+    registry = _make_registry(existing_ids={"sensor.my_car_speed"})
+    # Make the existing entity have a different unique_id
+    existing_mock = MagicMock()
+    existing_mock.unique_id = "completely_different_uid"
+    registry.async_get.return_value = existing_mock
+
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, set(), vehicle_name
+    )
+
+    assert count == 1
+    # Only original_name is updated — no new_entity_id
+    registry.async_update_entity.assert_called_once_with(
+        "sensor.my_car_my_car_speed",
+        original_name="Speed",
+    )
+
+
+def test_migrate_entity_registry_names_is_idempotent() -> None:
+    """Running the migration twice does not change already-migrated entries."""
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    vehicle_name = "Family Car"
+
+    # Entry that has already been migrated (original_name has no vehicle prefix)
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.family_car_fuel_level",
+            unique_id=f"{unique_id_prefix}k2f",
+            original_name="Fuel Level",
+        ),
+    ]
+
+    registry = _make_registry()
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, set(), vehicle_name
+    )
+
+    assert count == 0
+    registry.async_update_entity.assert_not_called()
