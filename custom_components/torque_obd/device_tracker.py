@@ -145,10 +145,8 @@ class TorqueDeviceTracker(RestoreEntity, TrackerEntity):
                     self._attr_extra_state_attributes = extra
 
                     _LOGGER.debug(
-                        "Restored GPS location for vehicle '%s': lat=%s, lon=%s",
+                        "Restored GPS location for vehicle '%s'",
                         self._vehicle_name,
-                        self._attr_latitude,
-                        self._attr_longitude,
                     )
                     self.async_write_ha_state()
             except (ValueError, TypeError):
