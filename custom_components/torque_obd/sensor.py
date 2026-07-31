@@ -108,7 +108,7 @@ def _migrate_entity_registry_names(
         if not original_name.strip().casefold().startswith(vehicle_prefix.casefold()):
             continue
 
-        stripped_name = original_name.strip()[len(vehicle_prefix):]
+        stripped_name = original_name.strip()[len(vehicle_prefix):].strip()
         expected_entity_id = f"sensor.{slugify(f'{vehicle_name.strip()} {stripped_name}')}"
 
         update_kwargs: dict[str, Any] = {"original_name": stripped_name}
