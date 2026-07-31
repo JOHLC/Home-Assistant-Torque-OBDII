@@ -38,7 +38,8 @@ This is a Home Assistant custom component. For development:
    - Run validation: python -m homeassistant.scripts.hassfest validate --integration-path custom_components/torque_obd
 
 3. For automated tests:
-   - Install test tools: pip install homeassistant==2025.1.4 pytest
+   - Use Python 3.14+ (Home Assistant 2026.6.0 requires Python >=3.14.2)
+   - Install test tools: pip install homeassistant==2026.6.0 pytest
    - Run tests: pytest -q tests
    - GitHub Actions runs the same pytest suite via .github/workflows/tests.yml
 
