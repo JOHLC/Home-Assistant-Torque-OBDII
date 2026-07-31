@@ -8,18 +8,31 @@
   corrected to `sensor.2025_ford_escape_fuel_level` on the very next Home
   Assistant restart — no manual "Recreate entity IDs" click required.
 
-  **Root cause:** Home Assistant never updates `original_name` in the entity
-  registry after initial registration, so the in-memory name-stripping added
-  in PR #50 left the stored `original_name` untouched.  Because "Recreate
-  entity IDs" re-derives entity IDs from `original_name`, it kept computing
-  the double-prefix ID and reporting "will not change".
+  **Root cause (updated):** Two compounding issues caused the residual failure:
 
-  **Fix:** A new `_migrate_entity_registry_names()` function runs during
-  integration setup and explicitly updates both `original_name` and
-  `entity_id` in the entity registry for every sensor entry whose
-  `original_name` still carries the vehicle-name prefix.  The function is
-  idempotent — once an entry is corrected it is never touched again.
-  Closes [#49](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/49).
+  1. HA's `async_get_or_create` *does* update `original_name` in the registry
+     when an entity reports a new name on re-registration.  When PR #50
+     stripped the vehicle-prefix from `_attr_name` in memory, HA propagated
+     that stripped name back into the registry's `original_name`.  The PR #51
+     migration then checked `original_name` for the vehicle prefix, found it
+     already stripped, and **skipped** the entry — leaving `entity_id` with
+     the double-prefix unchanged.
+
+  2. The static `api_endpoint` and `last_torque_update` sensors were in the
+     "skip" set passed to the migration, so their double-prefix entity IDs
+     were never fixed.
+
+  **Fix:** The migration now handles two cases:
+  - **Case A** – `original_name` still contains the vehicle prefix: strip it
+    and rename `entity_id` (previous behaviour, preserved).
+  - **Case B** – `original_name` is already correct but `entity_id` still
+    starts with the double-prefix pattern (`sensor.{slug}_{slug}_`): rename
+    only `entity_id`.
+
+  Additionally, the migration is now called with an empty skip-set so that
+  `api_endpoint` and `last_torque_update` entries are also migrated.
+  The function remains idempotent — once an entry is corrected it is never
+  touched again.  Closes [#49](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/49).
 
 ### Added
 - **Ford-Specific PIDs**: Added 40 new Ford-specific PID definitions based on community feedback:
