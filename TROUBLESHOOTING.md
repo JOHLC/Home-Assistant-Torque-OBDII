@@ -65,7 +65,7 @@ Before diving into detailed troubleshooting, verify these basics:
    - In Torque, there's usually a "Test" button near the webserver settings
    - This should return a success message if Home Assistant is reachable
 
-> **Important**: Home Assistant must be reachable from your phone at the time of upload. Uploads occur live while Torque is running and connected to the OBD adapter. There is no buffering, replay, or delayed synchronization. Data missed during a connectivity outage is lost permanently.
+> **Important**: Home Assistant must be reachable from your phone at the time of upload. Torque uploads periodically while it is running and connected. If Home Assistant is unreachable, Torque may queue items (see **Web Upload Status**), but uploads are best-effort and some data may be dropped.
 
 #### Solution 3: Check Home Assistant Logs
 
