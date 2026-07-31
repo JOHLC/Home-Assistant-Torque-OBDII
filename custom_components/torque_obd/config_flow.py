@@ -104,13 +104,16 @@ class TorqueConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 # Check if already configured - use vehicle name as unique identifier
                 # Normalize vehicle name for unique_id (same as URL: lowercase, spaces to dashes)
-                normalized_name = user_input[CONF_VEHICLE_NAME].lower().replace(' ', '-')
+                normalized_name = info["title"].lower().replace(' ', '-')
                 _LOGGER.debug("Setting unique_id to normalized vehicle name: %s", normalized_name)
                 await self.async_set_unique_id(normalized_name)
                 self._abort_if_unique_id_configured()
                 
                 _LOGGER.info("Creating config entry for vehicle '%s'", info["title"])
-                return self.async_create_entry(title=info["title"], data=user_input)
+                # Store the stripped vehicle name to avoid whitespace inconsistencies
+                clean_data = dict(user_input)
+                clean_data[CONF_VEHICLE_NAME] = info["title"]
+                return self.async_create_entry(title=info["title"], data=clean_data)
 
         return self.async_show_form(
             step_id="user",

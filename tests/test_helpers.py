@@ -60,6 +60,38 @@ def test_build_sensor_definition_uses_restored_name_without_vehicle_prefix() -> 
     assert definition["unit"] == SENSOR_DEFINITIONS["k0d"]["unit"]
 
 
+@pytest.mark.parametrize(
+    ("vehicle_name", "restored_name", "expected_name"),
+    [
+        # Exact case match
+        ("Family Car", "Family Car Cruise Speed", "Cruise Speed"),
+        # Lowercase vehicle name prefix in restored_name
+        ("Family Car", "family car Cruise Speed", "Cruise Speed"),
+        # Uppercase vehicle name prefix in restored_name
+        ("Family Car", "FAMILY CAR Cruise Speed", "Cruise Speed"),
+        # Vehicle name itself is lowercase
+        ("family car", "Family Car Cruise Speed", "Cruise Speed"),
+        # Mixed case vehicle name and restored name
+        ("2025 Ford Escape", "2025 ford escape Vehicle Speed", "Vehicle Speed"),
+        # No vehicle prefix – name is kept as-is
+        ("Family Car", "Cruise Speed", "Cruise Speed"),
+        # Leading/trailing whitespace on vehicle_name is ignored
+        ("  Family Car  ", "Family Car Cruise Speed", "Cruise Speed"),
+    ],
+)
+def test_build_sensor_definition_strips_vehicle_prefix_robustly(
+    vehicle_name: str, restored_name: str, expected_name: str
+) -> None:
+    """Vehicle prefix stripping should be case-insensitive and whitespace-tolerant."""
+    definition = _build_sensor_definition(
+        SENSOR_DEFINITIONS,
+        "kd",
+        vehicle_name,
+        restored_name,
+    )
+    assert definition["name"] == expected_name
+
+
 def test_build_sensor_definition_falls_back_for_unknown_pid() -> None:
     """Unknown PIDs should get a generic fallback definition."""
     definition = _build_sensor_definition(SENSOR_DEFINITIONS, "k999", "Family Car")

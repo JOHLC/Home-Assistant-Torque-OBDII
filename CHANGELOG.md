@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Duplicate Device Name in Entity IDs**: Resolved an issue where entity IDs included the vehicle name twice (e.g., `sensor.2025_ford_escape_2025_ford_escape_vehicle_speed` instead of `sensor.2025_ford_escape_vehicle_speed`). This occurred when migrating from older integration versions that stored the full vehicle-prefixed name in the entity registry. The vehicle prefix stripping during entity restore is now case-insensitive and whitespace-aware, and a safety strip in `TorqueSensor.__init__` prevents the duplication regardless of what is in the entity registry. The config flow now also stores the stripped vehicle name to prevent whitespace mismatches. Closes [#49](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/49).
+
 ### Added
 - **Ford-Specific PIDs**: Added 40 new Ford-specific PID definitions based on community feedback:
   - Engine diagnostics: Oil temp, coolant temp, knock sensor

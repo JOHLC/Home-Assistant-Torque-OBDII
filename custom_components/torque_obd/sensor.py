@@ -60,9 +60,10 @@ def _build_sensor_definition(
         }
 
     if restored_name:
-        vehicle_prefix = f"{vehicle_name} "
-        if restored_name.startswith(vehicle_prefix):
-            restored_name = restored_name[len(vehicle_prefix) :]
+        vehicle_prefix = f"{vehicle_name.strip()} "
+        stripped_restored_name = restored_name.strip()
+        if stripped_restored_name.casefold().startswith(vehicle_prefix.casefold()):
+            restored_name = stripped_restored_name[len(vehicle_prefix):]
         definition["name"] = restored_name
 
     return definition
@@ -216,6 +217,13 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         self._definition = definition
 
         self._attr_name = definition["name"]
+        # Ensure the entity name does not include the device/vehicle name prefix.
+        # With has_entity_name = True, HA prepends the device name automatically.
+        # If the name still includes the prefix (e.g. migrated from older code),
+        # strip it here so entity IDs are not duplicated.
+        vehicle_prefix = f"{vehicle_name.strip()} "
+        if self._attr_name.strip().lower().startswith(vehicle_prefix.lower()):
+            self._attr_name = self._attr_name.strip()[len(vehicle_prefix):]
         self._attr_native_unit_of_measurement = definition.get("unit")
         self._attr_icon = definition.get("icon")
 
