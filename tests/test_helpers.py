@@ -338,3 +338,85 @@ def test_migrate_entity_registry_names_is_idempotent() -> None:
 
     assert count == 0
     registry.async_update_entity.assert_not_called()
+
+
+def test_migrate_entity_registry_names_fixes_entity_id_when_name_already_stripped() -> None:
+    """Case B: entity_id still has double prefix even though original_name is already correct.
+
+    This happens when a prior code change caused HA's async_get_or_create to
+    update original_name in the registry to the stripped value, but the entity_id
+    was never corrected.  The migration should rename only the entity_id.
+    """
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    vehicle_name = "2025 Ford Escape"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.2025_ford_escape_2025_ford_escape_fuel_level",
+            unique_id=f"{unique_id_prefix}k2f",
+            original_name="Fuel Level",  # already correct — no vehicle prefix
+        ),
+        _make_registry_entry(
+            entity_id="sensor.2025_ford_escape_2025_ford_escape_engine_rpm",
+            unique_id=f"{unique_id_prefix}k0c",
+            original_name="Engine RPM",  # already correct — no vehicle prefix
+        ),
+    ]
+
+    registry = _make_registry()
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, set(), vehicle_name
+    )
+
+    assert count == 2
+    assert registry.async_update_entity.call_count == 2
+    # Only new_entity_id should be updated — original_name is already correct
+    registry.async_update_entity.assert_any_call(
+        "sensor.2025_ford_escape_2025_ford_escape_fuel_level",
+        new_entity_id="sensor.2025_ford_escape_fuel_level",
+    )
+    registry.async_update_entity.assert_any_call(
+        "sensor.2025_ford_escape_2025_ford_escape_engine_rpm",
+        new_entity_id="sensor.2025_ford_escape_engine_rpm",
+    )
+
+
+def test_migrate_entity_registry_names_handles_static_sensors() -> None:
+    """Static sensors (api_endpoint, last_torque_update) are migrated when not skipped.
+
+    When async_setup_entry passes an empty set as skipped_unique_ids, static
+    sensors that carry a double-prefix entity_id are also corrected.
+    """
+    entry_id = "abc123"
+    unique_id_prefix = f"{DOMAIN}_{entry_id}_"
+    vehicle_name = "2025 Ford Escape"
+
+    entries = [
+        _make_registry_entry(
+            entity_id="sensor.2025_ford_escape_2025_ford_escape_api_endpoint",
+            unique_id=f"{unique_id_prefix}api_endpoint",
+            original_name="API Endpoint",  # already correct
+        ),
+        _make_registry_entry(
+            entity_id="sensor.2025_ford_escape_2025_ford_escape_last_torque_update",
+            unique_id=f"{unique_id_prefix}last_torque_update",
+            original_name="Last Torque Update",  # already correct
+        ),
+    ]
+
+    registry = _make_registry()
+    # Pass empty set — static sensors should NOT be skipped from migration
+    count = _migrate_entity_registry_names(
+        registry, entries, unique_id_prefix, set(), vehicle_name
+    )
+
+    assert count == 2
+    registry.async_update_entity.assert_any_call(
+        "sensor.2025_ford_escape_2025_ford_escape_api_endpoint",
+        new_entity_id="sensor.2025_ford_escape_api_endpoint",
+    )
+    registry.async_update_entity.assert_any_call(
+        "sensor.2025_ford_escape_2025_ford_escape_last_torque_update",
+        new_entity_id="sensor.2025_ford_escape_last_torque_update",
+    )

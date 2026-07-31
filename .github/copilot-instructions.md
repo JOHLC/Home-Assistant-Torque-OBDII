@@ -95,5 +95,6 @@ Notes for the Agent
 - Standard PIDs may appear in short (`kd`) or zero-padded (`k0d`) form; treat both as the same sensor key
 - Test changes manually with the Torque Pro Android app when possible
 - Reference Home Assistant developer docs in .github/home-assistant-developer-docs/ for integration patterns
-- HA never updates `original_name` in the entity registry automatically after initial registration; to fix a stored name, call `entity_registry.async_update_entity(entity_id, original_name=new_name)` explicitly
-- Entity ID migration (e.g. removing duplicate device name prefix) must be done via `entity_registry.async_update_entity(entity_id, new_entity_id=..., original_name=...)` at setup time; see `_migrate_entity_registry_names()` in sensor.py for the pattern
+- HA's `async_get_or_create` **does** update `original_name` in the entity registry when an entity re-registers with a new name. Do NOT assume `original_name` is immutable after first registration — a code change that strips a prefix from `_attr_name` will cause HA to propagate that stripped name back into `original_name` on the next startup, even without an explicit `async_update_entity` call.
+- Entity ID migration (e.g. removing duplicate device name prefix) must handle two cases: (A) `original_name` still has the prefix → strip it and rename `entity_id`; (B) `original_name` already correct but `entity_id` still has the double-prefix pattern — rename only `entity_id`. See `_migrate_entity_registry_names()` in sensor.py for the full pattern.
+- When passing a "skip" set to `_migrate_entity_registry_names`, use an empty set so that static sensors (`api_endpoint`, `last_torque_update`) are also migrated; use a separate set to skip them from the dynamic-sensor restoration loop only.
