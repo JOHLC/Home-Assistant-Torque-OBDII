@@ -38,7 +38,7 @@ async def async_setup_entry(
     """Set up Torque GPS device tracker from a config entry.
 
     The tracker entity is created on-demand the first time GPS coordinates are
-    received from the Torque app (see TorqueView._create_entities_for_new_data in
+    received from the Torque app (see TorqueView._create_sensors_for_new_data in
     __init__.py).  If the entity was already registered in a previous run it is
     restored immediately from the entity registry so Home Assistant can show the
     last known position right away.
