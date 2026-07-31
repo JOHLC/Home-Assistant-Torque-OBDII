@@ -92,6 +92,7 @@
 - Default sensor definitions are merged with user-defined overrides
 - Improved logging for sensor definition loading and merging
 - Sensor names now include vehicle name for proper entity ID generation
+- HTTPS troubleshooting docs now explain that Torque may silently reject self-signed or privately issued certificates even when manual browser tests work
 
 ### Backward Compatibility
 - The integration remains fully backward compatible

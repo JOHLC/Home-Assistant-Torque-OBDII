@@ -89,12 +89,15 @@ Each vehicle gets its own unique API endpoint based on the name you configured.
      > Use HTTPS when accessing Home Assistant remotely. The integration supports both HTTP and HTTPS depending on your Home Assistant configuration.
    - **Email Address**: Optional (Torque does not reliably send this field)
    - Enable logging
+   - If you use **HTTPS**, prefer a reverse proxy on standard port **443** with a **publicly trusted certificate**. Torque may silently refuse self-signed or privately issued certificates even if the URL works in your browser.
 4. **⚠️ IMPORTANT**: After configuring both Home Assistant and Torque for the first time:
    - Go to Android Settings → Apps → Torque Pro
    - Tap **Force Stop**
    - Reopen Torque Pro
    - Reconnect to your OBD-II adapter
 5. Start driving!
+
+**HTTPS troubleshooting note**: If a manual POST works but Torque's **Web Upload Status** shows queued items with **0 sent** and Home Assistant logs show nothing, the request is usually being blocked before it reaches Home Assistant. The most common cause is Torque not trusting the HTTPS certificate chain. Try a local `http://` URL for testing, or switch to HTTPS on port 443 with a certificate issued by a public CA such as Let's Encrypt.
 
 **Note**: The integration domain is `torque_obd` to avoid conflicts with the native Torque integration.
 

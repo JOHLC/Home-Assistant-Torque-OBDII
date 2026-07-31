@@ -67,6 +67,7 @@ Important User Setup Notes
 - After configuring both Home Assistant and Torque for the first time, users MUST force stop the Torque app and reopen it
 - This is documented in README.md, custom_components/torque_obd/README.md, and TROUBLESHOOTING.md
 - This is the most common cause of "no data appearing" issues
+- Torque HTTPS uploads can fail silently when the certificate is self-signed, privately issued, or otherwise not trusted by the app; browser access alone is not enough to verify Torque upload compatibility
 
 Acceptance Criteria for PRs
 - Code follows Home Assistant conventions

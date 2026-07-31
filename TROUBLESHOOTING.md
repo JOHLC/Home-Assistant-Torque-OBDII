@@ -59,6 +59,7 @@ Before diving into detailed troubleshooting, verify these basics:
    - **Log to Webserver**: Should be **enabled** (checkbox checked)
    - **Logging Interval**: Default is usually 1-5 seconds
    - **Select what to log**: At least some PIDs should be selected
+   - If using **HTTPS**, prefer `https://your-domain.com/api/torque-your-vehicle-name` on standard port **443** with a **publicly trusted certificate**
 
 4. **Test the connection**:
    - In Torque, there's usually a "Test" button near the webserver settings
@@ -115,6 +116,21 @@ curl -X POST \
 ```
 
 Check Home Assistant logs for activity after running this command.
+
+#### Solution 7: Interpret Torque's Web Upload Status Screen
+
+If Torque shows:
+- **items waiting to upload** increasing
+- **0 items sent total**
+- **0 items failed to upload**
+- **Last Message: None** or blank
+
+then Torque usually is **not reaching Home Assistant at all**. If a manual POST still creates sensors in Home Assistant, the integration endpoint is working and the problem is typically one of these:
+- Torque does not trust the HTTPS certificate chain
+- The reverse proxy is not forwarding `/api/torque-*` POST requests
+- The HTTPS URL/port is reachable in a browser but not accepted by Torque's upload client
+
+In that situation, test with a local `http://` URL first. Once uploads succeed over HTTP, move back to HTTPS using port 443 and a certificate from a public CA such as Let's Encrypt.
 
 ### Sensors Show "Unavailable"
 
@@ -181,17 +197,19 @@ https://192.168.1.100:8123/api/torque-2025-ford-escape  # HTTP vs HTTPS mismatch
 
 #### Issue: SSL/HTTPS Problems
 
-If using HTTPS with self-signed certificates:
+If using HTTPS and Torque is not uploading:
 
 **Option 1**: Use HTTP instead (if on local network)
 ```
 http://192.168.1.100:8123/api/torque-2025-ford-escape
 ```
 
-**Option 2**: Install certificate on Android device
-1. Export Home Assistant SSL certificate
-2. Install on Android: Settings → Security → Install certificate
-3. Restart Torque app
+**Option 2**: Use a reverse proxy on port 443 with a publicly trusted certificate
+1. Terminate TLS with Nginx, Traefik, Caddy, or Home Assistant Cloud
+2. Use a certificate from a public CA such as Let's Encrypt
+3. Point Torque to `https://your-domain.com/api/torque-your-vehicle-name`
+
+**Important**: A browser working on the same Android device does **not** prove Torque will trust the certificate. Torque may silently reject self-signed, privately issued, or incomplete certificate chains.
 
 #### Issue: Port Forwarding
 
@@ -613,7 +631,7 @@ When asking for help, provide:
 | `Invalid data format` | Torque sending unexpected data | Enable debug logging to see raw data |
 | `No data received` | Torque not sending anything | Check Torque logging is enabled |
 | `Sensor unavailable` | No recent data for this sensor | Check if vehicle supports this PID |
-| `Certificate verify failed` | SSL certificate issue | Use HTTP or install certificate |
+| `Certificate verify failed` | SSL certificate issue | Use HTTP for testing or switch to a publicly trusted certificate on HTTPS |
 
 ## Security Considerations
 
