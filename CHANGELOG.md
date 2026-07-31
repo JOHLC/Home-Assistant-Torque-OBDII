@@ -3,7 +3,23 @@
 ## [Unreleased]
 
 ### Fixed
-- **Duplicate Device Name in Entity IDs**: Resolved an issue where entity IDs included the vehicle name twice (e.g., `sensor.2025_ford_escape_2025_ford_escape_vehicle_speed` instead of `sensor.2025_ford_escape_vehicle_speed`). This occurred when migrating from older integration versions that stored the full vehicle-prefixed name in the entity registry. The vehicle prefix stripping during entity restore is now case-insensitive and whitespace-aware, and a safety strip in `TorqueSensor.__init__` prevents the duplication regardless of what is in the entity registry. The config flow now also stores the stripped vehicle name to prevent whitespace mismatches. Closes [#49](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/49).
+- **Duplicate Device Name in Entity IDs (complete fix)**: Entity IDs such as
+  `sensor.2025_ford_escape_2025_ford_escape_fuel_level` are now automatically
+  corrected to `sensor.2025_ford_escape_fuel_level` on the very next Home
+  Assistant restart — no manual "Recreate entity IDs" click required.
+
+  **Root cause:** Home Assistant never updates `original_name` in the entity
+  registry after initial registration, so the in-memory name-stripping added
+  in PR #50 left the stored `original_name` untouched.  Because "Recreate
+  entity IDs" re-derives entity IDs from `original_name`, it kept computing
+  the double-prefix ID and reporting "will not change".
+
+  **Fix:** A new `_migrate_entity_registry_names()` function runs during
+  integration setup and explicitly updates both `original_name` and
+  `entity_id` in the entity registry for every sensor entry whose
+  `original_name` still carries the vehicle-name prefix.  The function is
+  idempotent — once an entry is corrected it is never touched again.
+  Closes [#49](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/49).
 
 ### Added
 - **Ford-Specific PIDs**: Added 40 new Ford-specific PID definitions based on community feedback:

@@ -16,7 +16,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.util import dt as dt_util
+from homeassistant.util import dt as dt_util, slugify
 
 from . import _normalize_pid
 from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
@@ -67,6 +67,77 @@ def _build_sensor_definition(
         definition["name"] = restored_name
 
     return definition
+
+
+def _migrate_entity_registry_names(
+    entity_registry: er.EntityRegistry,
+    registry_entries: list[er.RegistryEntry],
+    unique_id_prefix: str,
+    skipped_unique_ids: set[str],
+    vehicle_name: str,
+) -> int:
+    """Strip duplicate vehicle name prefix from entity registry entries.
+
+    Older code set entity names like "2025 Ford Escape Fuel Level" while
+    ``_attr_has_entity_name = True`` was also active.  HA stored that string
+    as ``original_name`` and then prepended the device name again when
+    generating the entity ID, producing the double-prefix pattern
+    ``sensor.2025_ford_escape_2025_ford_escape_fuel_level``.
+
+    HA never updates ``original_name`` automatically after initial
+    registration, so in-memory stripping alone does not fix the registry.
+    This function explicitly corrects both ``original_name`` and
+    ``entity_id`` for every affected entry so the fix takes effect on the
+    very next HA restart — no user action required.
+
+    Returns the number of entries that were migrated.
+    """
+    vehicle_prefix = f"{vehicle_name.strip()} "
+    migrated = 0
+
+    for entry in registry_entries:
+        if entry.unique_id in skipped_unique_ids:
+            continue
+        if not entry.unique_id.startswith(unique_id_prefix):
+            continue
+
+        original_name = entry.original_name
+        if not original_name:
+            continue
+
+        if not original_name.strip().casefold().startswith(vehicle_prefix.casefold()):
+            continue
+
+        stripped_name = original_name.strip()[len(vehicle_prefix):].strip()
+        expected_entity_id = f"sensor.{slugify(f'{vehicle_name.strip()} {stripped_name}')}"
+
+        update_kwargs: dict[str, Any] = {"original_name": stripped_name}
+
+        if entry.entity_id != expected_entity_id:
+            existing = entity_registry.async_get(expected_entity_id)
+            if existing is None or existing.unique_id == entry.unique_id:
+                update_kwargs["new_entity_id"] = expected_entity_id
+            else:
+                _LOGGER.warning(
+                    "Cannot migrate entity ID '%s' to '%s': "
+                    "the target entity_id is already registered",
+                    entry.entity_id,
+                    expected_entity_id,
+                )
+
+        entity_registry.async_update_entity(entry.entity_id, **update_kwargs)
+        migrated += 1
+        _LOGGER.debug(
+            "Migrated entity for vehicle '%s': name '%s' -> '%s'%s",
+            vehicle_name,
+            original_name,
+            stripped_name,
+            f" | entity_id '{entry.entity_id}' -> '{expected_entity_id}'"
+            if "new_entity_id" in update_kwargs
+            else "",
+        )
+
+    return migrated
 
 
 async def async_setup_entry(
@@ -126,6 +197,32 @@ async def async_setup_entry(
         entity_registry,
         config_entry.entry_id,
     )
+
+    # One-time migration: strip any vehicle-name prefix that was baked into
+    # original_name by older code versions (e.g. "2025 Ford Escape Fuel Level"
+    # → "Fuel Level").  HA never updates original_name automatically, so this
+    # must be done explicitly; it also corrects the stored entity_id so that
+    # sensors are immediately available at the correct ID without requiring the
+    # user to click "Recreate entity IDs".
+    migrated = _migrate_entity_registry_names(
+        entity_registry,
+        registry_entries,
+        unique_id_prefix,
+        skipped_unique_ids,
+        vehicle_name,
+    )
+    if migrated:
+        _LOGGER.info(
+            "Fixed duplicate device name prefix in %d entity registry "
+            "entries for vehicle '%s'",
+            migrated,
+            vehicle_name,
+        )
+        # Re-fetch so the restoration loop below sees the corrected names/IDs.
+        registry_entries = er.async_entries_for_config_entry(
+            entity_registry,
+            config_entry.entry_id,
+        )
 
     restored_sensor_count = 0
     disabled_sensor_keys: set[str] = set()
