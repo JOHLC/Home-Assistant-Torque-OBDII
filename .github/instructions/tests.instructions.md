@@ -4,9 +4,9 @@ applyTo: "**/tests/**/*.py"
 
 Test guidelines for this repository
 
-**Note**: This repository does not currently have automated tests. The tests/ directory contains only example payload data.
+**Note**: This repository now uses pytest for automated tests. The tests/ directory contains both automated tests and example payload data.
 
-When adding tests in the future:
+When adding or updating tests:
 
 1. Use pytest with Home Assistant's test utilities
 2. Tests must be isolated:
@@ -32,7 +32,7 @@ When adding tests in the future:
    - Avoid sleeps/time-dependent flakiness
    - Use Home Assistant's async test utilities
 8. Running tests:
-   - Use pytest -q or pytest --maxfail=1
+   - Use pytest -q tests or pytest --maxfail=1 tests
    - Follow Home Assistant testing patterns from .github/home-assistant-developer-docs/
 9. Mocking Torque data:
    - Provide reusable fixtures to simulate Torque HTTP POST requests
