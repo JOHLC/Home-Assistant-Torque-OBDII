@@ -201,10 +201,13 @@ Torque uses the following PID naming convention:
 - `k2f`: Fuel Level (OBD-II PID 0x2F)
 
 **Torque Custom PIDs**: "kff" + number
-- `kff1001`: GPS Latitude
-- `kff1002`: GPS Longitude
-- `kff1006`: GPS Speed
+- `kff1001`: GPS Speed (km/h)
+- `kff1005`: GPS Longitude
+- `kff1006`: GPS Latitude
+- `kff1007`: GPS Bearing
+- `kff1010`: GPS Altitude
 - `kff1238`: Battery Voltage
+- `kff1239`: GPS Accuracy (m)
 - `kff1266`: Trip Distance
 
 #### Example Configuration File
@@ -224,8 +227,9 @@ cp custom_components/torque_obd/torque_sensor_definitions.yaml.example /config/t
 5. **When Torque sends data**: Sensor names from the Torque payload (`userFullName{PID}`) take priority over all definitions
 6. Any PIDs received from Torque that aren't in either file will create a generic sensor automatically
 
-### Supported Sensors
+### Supported Sensors and Device Tracker
 
+- **GPS Device Tracker** (`device_tracker.<vehicle_name>`): Tracks the vehicle's location on the HA map and participates in zone detection (home/not_home). Created automatically when GPS latitude and longitude are first received from Torque. Extra attributes include bearing, altitude, GPS speed, and accuracy when available.
 - **Speed**: Vehicle speed (OBD-II), GPS speed
 - **Engine**: RPM, coolant temperature, oil temperature, intake air temperature
 - **Fuel**: Fuel level, fuel remaining, fuel used (trip), average fuel economy, instant fuel economy
