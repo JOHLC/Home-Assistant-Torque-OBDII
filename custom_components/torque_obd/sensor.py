@@ -61,8 +61,9 @@ def _build_sensor_definition(
 
     if restored_name:
         vehicle_prefix = f"{vehicle_name.strip()} "
-        if restored_name.strip().lower().startswith(vehicle_prefix.lower()):
-            restored_name = restored_name.strip()[len(vehicle_prefix):]
+        stripped_restored_name = restored_name.strip()
+        if stripped_restored_name.casefold().startswith(vehicle_prefix.casefold()):
+            restored_name = stripped_restored_name[len(vehicle_prefix):]
         definition["name"] = restored_name
 
     return definition
