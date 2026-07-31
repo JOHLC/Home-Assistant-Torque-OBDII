@@ -12,7 +12,7 @@
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=JOHLC&repository=Home-Assistant-Torque-OBDII&category=Integration)
 
-A fully functional Home Assistant custom integration for receiving vehicle data from the Torque Pro Android application via OBD-II.
+A Home Assistant custom integration for receiving vehicle telemetry from the Torque Android application and exposing it as sensors in Home Assistant.
 
 **⚡️ Modern rewrite of the Torque logger integration for Home Assistant.**<br>
 
@@ -22,9 +22,7 @@ A fully functional Home Assistant custom integration for receiving vehicle data 
 
 ## Overview
 
-This integration allows you to monitor real-time vehicle diagnostics data from your car's OBD-II port directly in Home Assistant. The Torque Pro Android app collects data from your vehicle and sends it to Home Assistant via HTTP, where it's converted into sensors you can use in automations, dashboards, and more.
-
-
+This integration allows you to monitor real-time vehicle diagnostics data from your car's OBD-II port directly in Home Assistant. The Torque Android application collects data from your vehicle's OBD-II interface and uploads telemetry to Home Assistant via an HTTP(S) endpoint, where it is converted into sensors you can use in automations, dashboards, and historical analysis.
 
 Bring your car's real-time OBD-II data into Home Assistant using the [Torque Pro](https://torque-bhp.com/) app.<br>
 This integration creates sensors for every OBD-II PID that your car reports, enabling automation, visualization, and monitoring of your vehicle.
@@ -82,7 +80,13 @@ Each vehicle gets its own unique API endpoint based on the name you configured.
 1. Open **Torque Pro** on your Android device
 2. Go to **Settings** → **Data Logging & Upload**
 3. Configure:
-   - **Web Upload URL**: Use your vehicle's unique endpoint (e.g., `http://YOUR_HA_IP:8123/api/torque-2025-ford-escape`)
+   - **Web Upload URL**: Use your vehicle's unique endpoint.
+     Examples:
+     - **Local Home Assistant** (same network):  
+       `http://YOUR_HA_IP:8123/api/torque-2025-ford-escape`
+     - **Remote Home Assistant with HTTPS**:  
+       `https://YOUR_DOMAIN/api/torque-2025-ford-escape`
+     > Use HTTPS when accessing Home Assistant remotely. The integration supports both HTTP and HTTPS depending on your Home Assistant configuration.
    - **Email Address**: Optional (Torque does not reliably send this field)
    - Enable logging
 4. **⚠️ IMPORTANT**: After configuring both Home Assistant and Torque for the first time:
@@ -136,6 +140,24 @@ The integration **dynamically creates sensors** based on data received from Torq
 - Torque Pro Android app
 - OBD-II adapter (Bluetooth or WiFi)
 - Vehicle with OBD-II port (most cars 1996+)
+
+## Security Considerations
+
+This integration is **receive-only**.
+
+- It does not communicate directly with your vehicle or OBD-II adapter.
+- It does not send commands to the vehicle.
+- It cannot modify ECU data, program modules, change odometer values, or interact with CAN bus functions.
+- It only processes telemetry uploaded by the Torque application.
+
+For remote access, follow standard Home Assistant security practices:
+
+- Use HTTPS for remote access.
+- Avoid exposing Home Assistant directly to the internet without proper authentication and security controls.
+- Keep Home Assistant and installed integrations up to date.
+- Only expose the data and sensors you are comfortable storing in Home Assistant.
+
+This integration is intended for telemetry, dashboards, history, and automations. It is not a replacement for your vehicle's instrument cluster or safety systems.
 
 ## Example Use Cases
 
