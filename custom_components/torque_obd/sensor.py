@@ -84,15 +84,23 @@ def _migrate_entity_registry_names(
     generating the entity ID, producing the double-prefix pattern
     ``sensor.2025_ford_escape_2025_ford_escape_fuel_level``.
 
-    HA never updates ``original_name`` automatically after initial
-    registration, so in-memory stripping alone does not fix the registry.
-    This function explicitly corrects both ``original_name`` and
-    ``entity_id`` for every affected entry so the fix takes effect on the
-    very next HA restart — no user action required.
+    Two cases are handled:
+
+    **Case A** – ``original_name`` still contains the vehicle prefix (e.g.
+    "2025 Ford Escape Fuel Level").  Both ``original_name`` and ``entity_id``
+    are corrected.
+
+    **Case B** – ``original_name`` was already stripped by a prior code
+    change (HA propagates a new entity name back into ``original_name`` via
+    ``async_get_or_create`` when the entity reports a different name on
+    re-registration), but the stored ``entity_id`` was never updated and
+    still has the double-prefix.  Only ``entity_id`` is corrected.
 
     Returns the number of entries that were migrated.
     """
     vehicle_prefix = f"{vehicle_name.strip()} "
+    vehicle_slug = slugify(vehicle_name.strip())
+    double_prefix_pattern = f"sensor.{vehicle_slug}_{vehicle_slug}_"
     migrated = 0
 
     for entry in registry_entries:
@@ -105,13 +113,20 @@ def _migrate_entity_registry_names(
         if not original_name:
             continue
 
-        if not original_name.strip().casefold().startswith(vehicle_prefix.casefold()):
+        update_kwargs: dict[str, Any] = {}
+
+        if original_name.strip().casefold().startswith(vehicle_prefix.casefold()):
+            # Case A: original_name still has the vehicle prefix.
+            stripped_name = original_name.strip()[len(vehicle_prefix):].strip()
+            update_kwargs["original_name"] = stripped_name
+        elif entry.entity_id.startswith(double_prefix_pattern):
+            # Case B: original_name already correct, but entity_id still has the
+            # double-prefix.  Only rename the entity_id.
+            stripped_name = original_name.strip()
+        else:
             continue
 
-        stripped_name = original_name.strip()[len(vehicle_prefix):].strip()
         expected_entity_id = f"sensor.{slugify(f'{vehicle_name.strip()} {stripped_name}')}"
-
-        update_kwargs: dict[str, Any] = {"original_name": stripped_name}
 
         if entry.entity_id != expected_entity_id:
             existing = entity_registry.async_get(expected_entity_id)
@@ -124,6 +139,9 @@ def _migrate_entity_registry_names(
                     entry.entity_id,
                     expected_entity_id,
                 )
+
+        if not update_kwargs:
+            continue
 
         entity_registry.async_update_entity(entry.entity_id, **update_kwargs)
         migrated += 1
@@ -188,6 +206,9 @@ async def async_setup_entry(
     ]
 
     unique_id_prefix = f"{DOMAIN}_{config_entry.entry_id}_"
+    # These unique IDs belong to static sensors that are added above and must be
+    # excluded from the dynamic-sensor restoration loop.  They are NOT excluded
+    # from migration — they can also carry a double-prefix entity_id from old code.
     skipped_unique_ids = {
         f"{unique_id_prefix}api_endpoint",
         f"{unique_id_prefix}last_torque_update",
@@ -200,15 +221,15 @@ async def async_setup_entry(
 
     # One-time migration: strip any vehicle-name prefix that was baked into
     # original_name by older code versions (e.g. "2025 Ford Escape Fuel Level"
-    # → "Fuel Level").  HA never updates original_name automatically, so this
-    # must be done explicitly; it also corrects the stored entity_id so that
-    # sensors are immediately available at the correct ID without requiring the
-    # user to click "Recreate entity IDs".
+    # → "Fuel Level"), and fix entity_ids that still carry the double prefix even
+    # when original_name was already corrected by HA's async_get_or_create.
+    # Pass an empty skip-set so static sensors (api_endpoint, last_torque_update)
+    # are also migrated if their entity_ids are wrong.
     migrated = _migrate_entity_registry_names(
         entity_registry,
         registry_entries,
         unique_id_prefix,
-        skipped_unique_ids,
+        set(),
         vehicle_name,
     )
     if migrated:
