@@ -11,6 +11,7 @@ Repository Structure
   - __init__.py - Component initialization and setup
   - config_flow.py - UI-based configuration flow
   - sensor.py - Sensor platform implementation
+  - device_tracker.py - GPS device tracker platform implementation
   - const.py - Constants and PID mappings (205+ PIDs defined)
   - manifest.json - Integration metadata
   - README.md - Detailed setup and configuration guide
@@ -98,3 +99,5 @@ Notes for the Agent
 - HA's `async_get_or_create` **does** update `original_name` in the entity registry when an entity re-registers with a new name. Do NOT assume `original_name` is immutable after first registration — a code change that strips a prefix from `_attr_name` will cause HA to propagate that stripped name back into `original_name` on the next startup, even without an explicit `async_update_entity` call.
 - Entity ID migration (e.g. removing duplicate device name prefix) must handle two cases: (A) `original_name` still has the prefix → strip it and rename `entity_id`; (B) `original_name` already correct but `entity_id` still has the double-prefix pattern — rename only `entity_id`. See `_migrate_entity_registry_names()` in sensor.py for the full pattern.
 - When passing a "skip" set to `_migrate_entity_registry_names`, use an empty set so that static sensors (`api_endpoint`, `last_torque_update`) are also migrated; use a separate set to skip them from the dynamic-sensor restoration loop only.
+- GPS device tracker (`device_tracker.py`) is created on-demand when Torque first sends GPS lat (`kff1006`) and lon (`kff1005`) together. It is never created for vehicles without GPS, so it never shows as unavailable. Once created it is restored from the entity registry on restart. `BaseTrackerEntity` sets `_attr_device_info = None` (device trackers cannot be linked to HA devices) and `_attr_entity_category = EntityCategory.DIAGNOSTIC` by default — override the latter to `None` for a primary (non-diagnostic) tracker.
+- GPS PIDs: latitude=`kff1006`, longitude=`kff1005`, accuracy=`kff1239`, bearing=`kff1007`, altitude=`kff1010`, speed=`kff1001`. Constants are defined in `const.py` (GPS_LATITUDE_PID, GPS_LONGITUDE_PID, etc.).

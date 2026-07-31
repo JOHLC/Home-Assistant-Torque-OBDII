@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+- **GPS Device Tracker**: A `device_tracker` entity is now automatically created
+  for each vehicle the first time the Torque app sends GPS latitude **and**
+  longitude values (`kff1006` / `kff1005`).  The entity uses
+  `source_type: gps` and participates in Home Assistant zone detection
+  (home / not_home / zone name) out of the box.
+
+  The tracker is **not** created until GPS data actually arrives, so vehicles
+  without GPS enabled will never see an unavailable entity.  Once created it
+  persists across restarts and restores the last known location from the HA
+  state store.
+
+  Extra state attributes (bearing, altitude, GPS speed, GPS accuracy) are
+  populated when the corresponding Torque PIDs are included in the payload.
+
+  Closes [#19](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/19).
+
 ### Fixed
 - **Duplicate Device Name in Entity IDs (complete fix)**: Entity IDs such as
   `sensor.2025_ford_escape_2025_ford_escape_fuel_level` are now automatically

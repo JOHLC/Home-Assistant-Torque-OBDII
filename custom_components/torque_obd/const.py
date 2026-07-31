@@ -27,6 +27,15 @@ SENSOR_DEFINITIONS_FILE: Final = "torque_sensor_definitions.yaml"
 CONF_EMAIL: Final = "email"
 CONF_VEHICLE_NAME: Final = "vehicle_name"
 
+# GPS PIDs used by the device tracker platform
+# kff1006 = GPS Latitude, kff1005 = GPS Longitude (verified from Torque payload examples)
+GPS_LATITUDE_PID: Final = "kff1006"
+GPS_LONGITUDE_PID: Final = "kff1005"
+GPS_ACCURACY_PID: Final = "kff1239"
+GPS_BEARING_PID: Final = "kff1007"
+GPS_ALTITUDE_PID: Final = "kff1010"
+GPS_SPEED_PID: Final = "kff1001"
+
 # Sensor definitions
 # Maps Torque parameter names to Home Assistant sensor attributes
 # NOTE: These are FALLBACK definitions. Sensor names should preferably come from

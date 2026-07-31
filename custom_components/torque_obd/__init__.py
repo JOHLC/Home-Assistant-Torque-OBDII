@@ -12,11 +12,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN, ATTRIBUTE_FIELDS, METADATA_FIELD_PREFIXES, load_sensor_definitions
+from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN, ATTRIBUTE_FIELDS, METADATA_FIELD_PREFIXES, load_sensor_definitions, GPS_LATITUDE_PID, GPS_LONGITUDE_PID
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.SENSOR, Platform.DEVICE_TRACKER]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -315,6 +315,29 @@ class TorqueView(HomeAssistantView):
             async_add_entities(new_sensors, True)
             vehicle_name = entry_data.get("vehicle_name", "Unknown")
             _LOGGER.info("Added %d new sensor(s) for vehicle '%s'", len(new_sensors), vehicle_name)
+
+        # Create the GPS device tracker the first time both latitude and longitude
+        # PIDs are present in the payload (create-on-demand so it never shows as
+        # unavailable for vehicles without GPS enabled).
+        if (
+            GPS_LATITUDE_PID in data_dict
+            and GPS_LONGITUDE_PID in data_dict
+            and not entry_data.get("tracker_added", False)
+            and entry_data.get("async_add_tracker") is not None
+        ):
+            from .device_tracker import TorqueDeviceTracker
+
+            tracker = TorqueDeviceTracker(
+                self.hass,
+                self.entry_id,
+                entry_data.get("vehicle_name", "Unknown"),
+            )
+            entry_data["tracker_added"] = True
+            entry_data["async_add_tracker"]([tracker], True)
+            _LOGGER.info(
+                "Created GPS device tracker for vehicle '%s'",
+                entry_data.get("vehicle_name", "Unknown"),
+            )
 
     async def _handle_request(self, request: web.Request) -> web.Response:
         """Process the Torque request."""
