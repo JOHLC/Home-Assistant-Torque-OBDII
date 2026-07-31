@@ -110,7 +110,10 @@ class TorqueConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 
                 _LOGGER.info("Creating config entry for vehicle '%s'", info["title"])
-                return self.async_create_entry(title=info["title"], data=user_input)
+                # Store the stripped vehicle name to avoid whitespace inconsistencies
+                clean_data = dict(user_input)
+                clean_data[CONF_VEHICLE_NAME] = info["title"]
+                return self.async_create_entry(title=info["title"], data=clean_data)
 
         return self.async_show_form(
             step_id="user",
