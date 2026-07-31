@@ -48,7 +48,7 @@ This integration is **receive-only**. It cannot communicate back to the adapter,
 
 Each vehicle gets its own unique API endpoint based on the vehicle name you configured.
 
-> **Home Assistant must be reachable from your phone** at the time Torque uploads data. Uploads occur live while Torque is running and connected to the OBD adapter. There is no buffering, replay, or delayed synchronization. Data missed during a connectivity outage is lost permanently.
+> **Home Assistant must be reachable from your phone** at the time Torque uploads data. Torque uploads periodically while it is running and connected. If Home Assistant is unreachable, Torque may queue items (see **Web Upload Status**), but uploads are best-effort and some data may be dropped.
 
 **Example**: If you named your vehicle "2025 Ford Escape", the endpoint will be:
 `http://YOUR_HA_IP:8123/api/torque-2025-ford-escape`
