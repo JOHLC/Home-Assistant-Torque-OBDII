@@ -1,17 +1,21 @@
 # Torque OBD-II Integration for Home Assistant
 
-This integration allows Home Assistant to receive vehicle data from the [Torque Pro](https://torque-bhp.com/) Android application via OBD-II.
+This custom integration allows Home Assistant to receive vehicle data from the [Torque](https://torque-bhp.com/) Android application via OBD-II.
+
+**Data flow**: OBD-II adapter → Torque Android app → HTTP(S) upload → Home Assistant custom integration
+
+This integration is **receive-only**. It cannot communicate back to the adapter, vehicle, or Torque app. It cannot send OBD-II or CAN bus commands, write ECU data, program modules, or control any vehicle function.
 
 ## 📚 Documentation Quick Links
 
-- **[PID Reference Guide](../../PIDS.md)** - Complete database of 151+ supported OBD-II PIDs
+- **[PID Reference Guide](../../PIDS.md)** - Complete database of 205+ supported OBD-II PIDs
 - **[Troubleshooting Guide](../../TROUBLESHOOTING.md)** - Solutions to common issues
 - **[Architecture Documentation](ARCHITECTURE.md)** - Technical details for developers
 
 ## Features
 
 - Real-time vehicle data monitoring
-- Support for 151+ vehicle parameters including:
+- Support for 205+ vehicle parameters including:
   - Vehicle speed and GPS speed
   - Engine RPM
   - Engine coolant, oil, and intake air temperatures
@@ -44,6 +48,8 @@ This integration allows Home Assistant to receive vehicle data from the [Torque 
 
 Each vehicle gets its own unique API endpoint based on the vehicle name you configured.
 
+> **Home Assistant must be reachable from your phone** at the time Torque uploads data. Torque uploads periodically while it is running and connected. If Home Assistant is unreachable, Torque may queue items (see **Web Upload Status**), but uploads are best-effort and some data may be dropped.
+
 **Example**: If you named your vehicle "2025 Ford Escape", the endpoint will be:
 `http://YOUR_HA_IP:8123/api/torque-2025-ford-escape`
 
@@ -52,7 +58,7 @@ Each vehicle gets its own unique API endpoint based on the vehicle name you conf
 
 #### Configuration Steps:
 
-1. Open Torque Pro on your Android device
+1. Open the Torque app on your Android device
 2. Go to Settings → Data Logging & Upload
 3. Select "Webserver" or "Web Upload"
 4. Configure the following:
@@ -63,9 +69,9 @@ Each vehicle gets its own unique API endpoint based on the vehicle name you conf
 5. Select the PIDs you want to log
 6. Save settings
 7. **⚠️ CRITICAL - First Time Setup**: After configuring both Home Assistant and Torque for the first time:
-   - Go to Android Settings → Apps → Torque Pro
+   - Go to Android Settings → Apps → Torque (or Torque Pro)
    - Tap **Force Stop**
-   - Reopen Torque Pro
+   - Reopen the app
    - Reconnect to your OBD-II adapter
    - This ensures Torque starts sending data to the new endpoint
 
@@ -231,12 +237,18 @@ cp custom_components/torque_obd/torque_sensor_definitions.yaml.example /config/t
 
 ## Security Considerations
 
-The integration creates vehicle-specific HTTP endpoints (e.g., `/api/torque-<vehicle-name>`) that **do not require authentication**. This is necessary because the Torque app does not support authenticated requests. To mitigate security risks:
+The integration creates vehicle-specific HTTP endpoints (e.g., `/api/torque-<vehicle-name>`) that **do not require authentication**. This is a Torque app limitation. To mitigate security risks:
 
-1. **Network Security**: Use this integration only on a trusted local network
-2. **Email Identifier**: Data is filtered by email address - only configured vehicles will have their data stored
-3. **Firewall**: Consider using firewall rules to restrict access to the Home Assistant instance
-4. **Internal Network**: For best security, keep Home Assistant on an internal network and use a VPN for remote access
+1. **Network Security**: Use HTTP only on a trusted private network. **Do not transmit telemetry, credentials, or GPS data over unencrypted HTTP on public or untrusted networks.**
+2. **HTTPS for Remote Access**: Use HTTPS with a publicly trusted certificate for any remote access.
+3. **Firewall**: Consider using firewall rules to restrict access to the Home Assistant instance.
+4. **VPN**: For remote access, VPN is preferable to direct internet exposure.
+
+> **Adapter and vehicle compatibility**: Adapter compatibility, connection type (Bluetooth, BLE, Wi-Fi, or wired), and vehicle PID availability are determined by Torque, the adapter, and the vehicle—not by this integration.
+
+> **Standard vs. manufacturer-specific PIDs**: Standard OBD-II PIDs (e.g., engine RPM, coolant temperature) are broadly supported on vehicles manufactured after 1996. Manufacturer-specific or enhanced PIDs may require custom definitions in `torque_sensor_definitions.yaml` and may vary significantly by vehicle make, model, and year.
+
+> **Privacy**: This integration can log GPS location history, trip data, driving behavior, and vehicle identifiers. Restrict Home Assistant access to trusted users and review what sensors you expose.
 
 If you need to expose Home Assistant externally, consider using:
 - A reverse proxy with additional authentication
@@ -252,9 +264,9 @@ If you need to expose Home Assistant externally, consider using:
 #### No Data Appearing in Home Assistant
 
 **⚠️ MOST COMMON ISSUE**: After initial setup, you must **force stop** the Torque app and reopen it:
-1. Go to Android Settings → Apps → Torque Pro
+1. Go to Android Settings → Apps → Torque
 2. Tap **Force Stop**
-3. Reopen Torque Pro and reconnect to OBD adapter
+3. Reopen Torque and reconnect to OBD adapter
 
 **Other checks**:
 1. **Check the Torque app is sending data**:
@@ -323,7 +335,7 @@ This allows you to monitor multiple vehicles simultaneously without any conflict
 
 ## Credits
 
-This integration receives data from the Torque Pro Android application. Torque is a trademark of Ian Hawkins.
+This integration receives data from the Torque Android application. Torque is a trademark of Ian Hawkins.
 
 ## License
 

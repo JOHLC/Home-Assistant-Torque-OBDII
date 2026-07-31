@@ -2,13 +2,17 @@
 
 ## Overview
 
-This document describes how the Torque OBD-II integration works internally.
+This document describes how the Torque OBD-II custom integration works internally.
+
+**Data flow**: OBD-II adapter → Torque Android app → HTTP(S) upload → Home Assistant custom integration
+
+The integration is **receive-only**. It cannot communicate back to the adapter, vehicle, or Torque app.
 
 ## Architecture Diagram
 
 ```
 ┌─────────────────────┐
-│   Torque Pro App    │
+│   Torque App        │
 │   (Android Phone)   │
 │                     │
 │  Connected to car   │
@@ -22,7 +26,7 @@ This document describes how the Torque OBD-II integration works internally.
 │                                     │
 │  ┌─────────────────────────────┐   │
 │  │ /api/torque-2025-ford-escape│   │ ◄─── Unique HTTP endpoint per vehicle
-│  │ /api/torque-2017-ford-fusion│   │      (no auth)
+│  │ /api/torque-2017-ford-fusion│   │      (unauthenticated; Torque limitation)
 │  │  HTTP Views                  │   │
 │  └───────────┬──────────────────┘   │
 │              │                      │
@@ -35,8 +39,8 @@ This document describes how the Torque OBD-II integration works internally.
 │              │ dispatcher_send()    │
 │              ▼                      │
 │  ┌─────────────────────────────┐   │
-│  │    Sensors (per vehicle)    │   │ ◄─── 26 sensor entities per vehicle
-│  │  (TorqueSensor)             │   │     Update their state
+│  │    Sensors (per vehicle)    │   │ ◄─── Dynamically created sensor entities
+│  │  (TorqueSensor)             │   │      Update their state
 │  └─────────────────────────────┘   │
 │                                     │
 │  ┌─────────────────────────────┐   │
@@ -49,7 +53,7 @@ This document describes how the Torque OBD-II integration works internally.
 ## Data Flow
 
 1. **Vehicle Data Collection**
-   - Torque Pro app connects to car's OBD-II port via Bluetooth/WiFi adapter
+   - Torque app connects to car's OBD-II port via Bluetooth/Wi-Fi/wired adapter
    - App collects vehicle parameters (speed, RPM, temperature, etc.)
    - Data is sent periodically to configured URL
 
@@ -61,6 +65,7 @@ This document describes how the Torque OBD-II integration works internally.
      - `kc`: Engine RPM
      - `k2f`: Fuel level
      - And many more PIDs...
+   - Uploads occur live while Torque is running and connected. There is no buffering or replay. Data missed during a connectivity outage is lost permanently.
 
 3. **Data Reception & Routing**
    - `TorqueView` for that specific vehicle receives the HTTP request
@@ -178,7 +183,7 @@ The integration supports multiple vehicles:
 1. Each vehicle configured with unique vehicle name
 2. Each vehicle gets its own unique HTTP endpoint (e.g., `/api/torque-2025-ford-escape`)
 3. Data is routed by endpoint URL, not by email (Torque does not reliably send email)
-4. Each vehicle gets its own set of 26 sensors
+4. Each vehicle gets its own set of dynamically created sensors
 5. Devices grouped by vehicle name in UI
 6. No data conflicts between vehicles
 

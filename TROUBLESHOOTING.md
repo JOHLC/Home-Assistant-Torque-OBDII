@@ -22,7 +22,7 @@ This guide helps you resolve common issues with the Torque OBD-II integration fo
 Before diving into detailed troubleshooting, verify these basics:
 
 - [ ] **Home Assistant** integration is installed and configured
-- [ ] **Torque Pro** app is purchased and installed (free version doesn't support data upload)
+- [ ] **Torque** app is installed with web upload support enabled
 - [ ] **OBD-II adapter** is connected to vehicle and paired with phone
 - [ ] **Vehicle ignition** is on (engine doesn't need to be running for most sensors)
 - [ ] **Torque app** is running and connected to OBD adapter
@@ -42,9 +42,9 @@ Before diving into detailed troubleshooting, verify these basics:
 🔴 **CRITICAL**: After configuring both Home Assistant and Torque for the first time, you **must** force stop the Torque app and reopen it.
 
 **Steps**:
-1. Go to Android Settings → Apps → Torque Pro
+1. Go to Android Settings → Apps → Torque
 2. Tap "Force Stop"
-3. Reopen Torque Pro
+3. Reopen Torque
 4. Reconnect to your OBD-II adapter
 5. Start driving or let the engine idle for 30 seconds
 
@@ -52,7 +52,7 @@ Before diving into detailed troubleshooting, verify these basics:
 
 #### Solution 2: Verify Torque Configuration
 
-1. Open **Torque Pro** app
+1. Open the **Torque** app
 2. Go to **Settings** → **Data Logging & Upload**
 3. Verify these settings:
    - **Webserver URL**: Should be `http://YOUR_HA_IP:8123/api/torque-your-vehicle-name`
@@ -64,6 +64,8 @@ Before diving into detailed troubleshooting, verify these basics:
 4. **Test the connection**:
    - In Torque, there's usually a "Test" button near the webserver settings
    - This should return a success message if Home Assistant is reachable
+
+> **Important**: Home Assistant must be reachable from your phone at the time of upload. Torque uploads periodically while it is running and connected. If Home Assistant is unreachable, Torque may queue items (see **Web Upload Status**), but uploads are best-effort and some data may be dropped.
 
 #### Solution 3: Check Home Assistant Logs
 
@@ -94,7 +96,7 @@ If you can't reach Home Assistant:
 
 #### Solution 5: Check Sensor Selection in Torque
 
-1. Open **Torque Pro**
+1. Open the **Torque** app
 2. Go to **Settings** → **Data Logging & Upload**
 3. Tap **Select what to log**
 4. Ensure some PIDs are checked (green checkmarks)
@@ -182,16 +184,17 @@ If the logging interval is too long, sensors may appear unavailable:
 ✅ **Correct formats**:
 ```
 http://192.168.1.100:8123/api/torque-2025-ford-escape
-https://homeassistant.local:8123/api/torque-my-car
+https://your-domain.com/api/torque-my-car
 ```
 
 ❌ **Incorrect formats**:
 ```
 http://192.168.1.100:8123/api/torque_obd/2025-ford-escape  # Wrong path
 http://192.168.1.100/api/torque-2025-ford-escape  # Missing port
-https://192.168.1.100:8123/api/torque-2025-ford-escape  # HTTP vs HTTPS mismatch
 192.168.1.100:8123/api/torque-2025-ford-escape  # Missing http://
 ```
+
+> **Note on HTTPS with local hostnames** (e.g., `homeassistant.local`): Using HTTPS on a local mDNS hostname requires a valid certificate for that hostname, which is uncommon. Torque may silently reject self-signed or untrusted certificates. For local network use, plain HTTP (`http://`) is simpler and appropriate on a trusted private network. For remote access, use HTTPS with a publicly trusted certificate on a real domain.
 
 **Note**: The vehicle name portion is converted to lowercase with spaces replaced by dashes.
 
@@ -338,7 +341,7 @@ These depend on vehicle profile settings in Torque and may not match actual valu
 
 #### Issue: Sensor Lag
 
-There can be delay between real-time and Home Assistant:
+Home Assistant timestamps represent when data was **received** by the integration, not when the vehicle measurement occurred. There can be a small delay between real-time and Home Assistant:
 - Network latency (usually <1 second)
 - Logging interval in Torque (default 1-5 seconds)
 - Home Assistant processing time (<1 second)
@@ -570,7 +573,7 @@ If you've tried all the above and still have issues:
 Gather this information:
 1. **Home Assistant version**: Settings → System → About
 2. **Integration version**: HACS → Search for Torque OBD-II
-3. **Torque Pro version**: Check in Torque app settings
+3. **Torque app version**: Check in Torque app settings
 4. **OBD adapter model**: What adapter are you using?
 5. **Vehicle details**: Year, make, model
 6. **Error logs**: Copy relevant error messages from HA logs
@@ -599,7 +602,7 @@ When asking for help, provide:
 ```
 **Home Assistant Version**: 2023.12.1
 **Integration Version**: 1.2.3
-**Torque Pro Version**: 1.10.127
+**Torque App Version**: 1.10.127
 **OBD Adapter**: ELM327 Bluetooth v1.5
 **Vehicle**: 2025 Ford Escape ST-Line
 
@@ -638,12 +641,13 @@ When asking for help, provide:
 **Remember**: Torque endpoints are **not authenticated** by design (Torque limitation).
 
 **Security best practices**:
-1. ✅ Use only on trusted local networks
-2. ✅ Don't expose Home Assistant directly to internet
-3. ✅ Use VPN for remote access
-4. ✅ Consider firewall rules to restrict access
-5. ❌ Don't port forward Home Assistant without additional security
-6. ❌ Don't use on public WiFi networks
+1. ✅ Use only on trusted local networks for HTTP
+2. ✅ Use HTTPS for all remote access
+3. ✅ **Do not transmit telemetry, credentials, or GPS data over unencrypted HTTP on public or untrusted networks**
+4. ✅ Use VPN for remote access when possible
+5. ✅ Consider firewall rules to restrict access
+6. ❌ Don't expose Home Assistant directly to the internet without additional security
+7. ❌ Don't use unencrypted HTTP on public WiFi networks
 
 For more security information, see the [Integration README](custom_components/torque_obd/README.md#security-considerations).
 
