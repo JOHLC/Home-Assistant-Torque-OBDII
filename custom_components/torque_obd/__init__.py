@@ -12,7 +12,16 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN, ATTRIBUTE_FIELDS, METADATA_FIELD_PREFIXES, load_sensor_definitions, GPS_LATITUDE_PID, GPS_LONGITUDE_PID
+from .const import (
+    ATTRIBUTE_FIELDS,
+    CONF_EMAIL,
+    CONF_VEHICLE_NAME,
+    DOMAIN,
+    GPS_LATITUDE_PID,
+    GPS_LONGITUDE_PID,
+    METADATA_FIELD_PREFIXES,
+    load_sensor_definitions,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
