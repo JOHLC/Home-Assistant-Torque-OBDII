@@ -35,7 +35,7 @@ This integration creates sensors for every OBD-II PID that your car reports, ena
 - 🗺️ **GPS tracking** - Location, altitude, and bearing information
 - 🔌 **Easy setup** - Simple UI-based configuration
 - 📱 **Multiple vehicles** - Support for multiple cars with different email identifiers
-- 🏠 **Native Home Assistant integration** - Works seamlessly with automations and dashboards
+- 🏠 **Home Assistant integration** - Works seamlessly with automations and dashboards
 
 ## Quick Start
 
