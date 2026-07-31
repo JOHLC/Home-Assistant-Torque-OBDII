@@ -3,7 +3,7 @@ This repository: Home-Assistant-Torque-OBDII
 Primary language: Python
 
 Overview
-This repository provides a Home Assistant custom integration for receiving vehicle data from the Torque Pro Android application via OBD-II. This is a HACS-compatible custom component with no external Python dependencies.
+This repository provides a Home Assistant custom integration for receiving vehicle data from the Torque Android application via OBD-II. This is a HACS-compatible custom component with no external Python dependencies.
 Whenever there are changes or anything different,  make sure to update the instructions file at: /.github/copilot-instructions.md with anything relevant. 
 
 Repository Structure
@@ -11,13 +11,13 @@ Repository Structure
   - __init__.py - Component initialization and setup
   - config_flow.py - UI-based configuration flow
   - sensor.py - Sensor platform implementation
-  - const.py - Constants and PID mappings (151+ PIDs defined)
+  - const.py - Constants and PID mappings (205+ PIDs defined)
   - manifest.json - Integration metadata
   - README.md - Detailed setup and configuration guide
   - ARCHITECTURE.md - Technical architecture documentation
 - tests/ - Example payload data (no automated tests currently)
 - examples/ - Example configurations
-- PIDS.md - Comprehensive PID reference guide (151+ PIDs documented)
+- PIDS.md - Comprehensive PID reference guide (205+ PIDs documented)
 - TROUBLESHOOTING.md - Complete troubleshooting guide
 - README.md - Main project readme with quick start
 - CHANGELOG.md - Version history and changes

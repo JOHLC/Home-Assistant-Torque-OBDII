@@ -1,6 +1,6 @@
 # OBD-II PID Reference Guide
 
-This document provides a comprehensive reference of all PIDs (Parameter IDs) supported by the Torque OBD-II integration for Home Assistant.
+This document provides a comprehensive reference of all PIDs (Parameter IDs) supported by the Torque OBD-II custom integration for Home Assistant.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ Torque uses a specific naming convention for PIDs:
 
 ## Standard OBD-II PIDs
 
-These PIDs are defined by the OBD-II standard and should work on most vehicles manufactured after 1996.
+These PIDs are defined by the OBD-II standard and are broadly supported on most vehicles manufactured after 1996. Not every vehicle supports every PID; availability depends on the vehicle make, model, year, and the OBD-II adapter used.
 
 ### Engine Parameters
 
@@ -297,6 +297,8 @@ These PIDs are calculated or derived by the Torque app and provide additional us
 
 ## Manufacturer-Specific PIDs
 
+Manufacturer-specific or enhanced PIDs are not part of the standard OBD-II specification and vary significantly by vehicle make, model, and year. They may require custom definitions in `torque_sensor_definitions.yaml` and are not guaranteed to work on all vehicles or adapters.
+
 ### Ford Extended PIDs
 
 | PID | Name | Unit | Description |
@@ -403,9 +405,11 @@ Home Assistant will automatically convert these values based on your configured 
 Not all vehicles support all PIDs. The availability of specific PIDs depends on:
 
 1. **Vehicle age**: Newer vehicles typically support more PIDs
-2. **Vehicle manufacturer**: Some manufacturers provide extended PIDs
-3. **OBD-II adapter**: Must support the protocols used by your vehicle
+2. **Vehicle manufacturer**: Each manufacturer exposes different parameters
+3. **OBD-II adapter**: Must support the communication protocols used by your vehicle
 4. **Torque app configuration**: PIDs must be selected in Torque for logging
+
+Standard OBD-II PIDs are broadly supported, but manufacturer-specific or enhanced PIDs vary significantly and may require custom definitions. If a PID is unsupported by your vehicle, no sensor will be created for it and it will show "---" in the Torque app.
 
 ### Dynamic Sensor Creation
 
@@ -424,7 +428,7 @@ This means your sensors will automatically use the names you've configured in th
 ## Resources
 
 - [OBD-II PIDs Wikipedia](https://en.wikipedia.org/wiki/OBD-II_PIDs) - Official OBD-II PID specifications
-- [Torque Pro Documentation](https://torque-bhp.com/wiki/Main_Page) - Torque app documentation
+- [Torque Documentation](https://torque-bhp.com/wiki/Main_Page) - Torque app documentation
 - [Integration README](custom_components/torque_obd/README.md) - Setup and configuration guide
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
 
