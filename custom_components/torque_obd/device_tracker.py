@@ -119,6 +119,21 @@ class TorqueDeviceTracker(RestoreEntity, TrackerEntity):
             "Initialized GPS device tracker for vehicle '%s'", vehicle_name
         )
 
+    @property
+    def latitude(self) -> float | None:
+        """Return the latest latitude."""
+        return self._attr_latitude
+
+    @property
+    def longitude(self) -> float | None:
+        """Return the latest longitude."""
+        return self._attr_longitude
+
+    @property
+    def location_accuracy(self) -> float:
+        """Return the latest GPS accuracy in meters."""
+        return self._attr_location_accuracy
+
     async def async_added_to_hass(self) -> None:
         """Restore the last known GPS location and subscribe to Torque updates."""
         await super().async_added_to_hass()
@@ -162,6 +177,10 @@ class TorqueDeviceTracker(RestoreEntity, TrackerEntity):
                 self._handle_update,
             )
         )
+        # The upload that creates this tracker can dispatch before it subscribes.
+        latest = self.hass.data.get(DOMAIN, {}).get(self._entry_id, {}).get("data")
+        if isinstance(latest, dict):
+            self._handle_update(latest)
 
     @callback
     def _handle_update(self, data: dict[str, Any]) -> None:
@@ -177,12 +196,8 @@ class TorqueDeviceTracker(RestoreEntity, TrackerEntity):
             lat = float(lat_raw)
             lon = float(lon_raw)
         except (ValueError, TypeError):
-            _LOGGER.debug(
-                "Invalid GPS coordinates for vehicle '%s': lat=%s, lon=%s",
-                self._vehicle_name,
-                lat_raw,
-                lon_raw,
-            )
+            return
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180) or (lat, lon) == (0, 0):
             return
 
         self._attr_latitude = lat

@@ -7,9 +7,14 @@ import logging
 import math
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import RestoreSensor, SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import (
+    ATTR_UNIT_OF_MEASUREMENT,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er, network
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -17,11 +22,14 @@ from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util, slugify
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 from . import _normalize_pid
 from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+# SAE J1979 encodes these temperatures in one byte with a -40 °C offset.
+_STANDARD_TEMPERATURE_PIDS = {"k05", "k0f", "k46"}
 
 
 def _build_lookup_keys(key: str) -> tuple[str, ...]:
@@ -310,7 +318,7 @@ async def async_setup_entry(
     )
 
 
-class TorqueSensor(RestoreEntity, SensorEntity):
+class TorqueSensor(RestoreSensor):
     """Representation of a Torque OBD-II sensor."""
 
     _attr_should_poll = False
@@ -342,6 +350,8 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         vehicle_prefix = f"{vehicle_name.strip()} "
         if self._attr_name.strip().lower().startswith(vehicle_prefix.lower()):
             self._attr_name = self._attr_name.strip()[len(vehicle_prefix):]
+        if _normalize_pid(key) == "kff123b" and self._attr_name.casefold() == "gps bearing":
+            self._attr_name = "GPS Bearing (alternate)"
         self._attr_native_unit_of_measurement = definition.get("unit")
         self._attr_icon = definition.get("icon")
 
@@ -385,6 +395,11 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         )
 
         last_state = await self.async_get_last_state()
+        last_data = await self.async_get_last_sensor_data()
+        if last_data is not None:
+            self._attr_native_value = self._parse_value(
+                last_data.native_value, last_data.native_unit_of_measurement
+            )
         if last_state is not None and last_state.state not in (
             None,
             STATE_UNKNOWN,
@@ -396,19 +411,11 @@ class TorqueSensor(RestoreEntity, SensorEntity):
                 last_state.state,
             )
 
-            try:
-                restored_value = float(last_state.state)
-                if not math.isfinite(restored_value):
-                    _LOGGER.debug(
-                        "Sensor '%s' had non-finite restored state '%s', setting to None",
-                        self._attr_name,
-                        last_state.state,
-                    )
-                    self._attr_native_value = None
-                else:
-                    self._attr_native_value = restored_value
-            except (ValueError, TypeError):
-                self._attr_native_value = last_state.state
+            if last_data is None:
+                self._attr_native_value = self._parse_value(
+                    last_state.state,
+                    last_state.attributes.get(ATTR_UNIT_OF_MEASUREMENT),
+                )
 
             if last_state.attributes:
                 custom_attrs = {}
@@ -441,6 +448,30 @@ class TorqueSensor(RestoreEntity, SensorEntity):
             )
         )
 
+    def _parse_value(self, value: Any, source_unit: str | None = None) -> Any:
+        """Parse a reading and restore converted temperatures in their native unit."""
+        try:
+            number = float(value)
+        except (ValueError, TypeError):
+            return value
+        if not math.isfinite(number):
+            return None
+        native_unit = self.native_unit_of_measurement
+        if (
+            self.device_class != SensorDeviceClass.TEMPERATURE
+            or native_unit not in TemperatureConverter.VALID_UNITS
+        ):
+            return number
+        if source_unit in TemperatureConverter.VALID_UNITS:
+            number = TemperatureConverter.convert(number, source_unit, native_unit)
+        if _normalize_pid(self._key) in _STANDARD_TEMPERATURE_PIDS:
+            celsius = TemperatureConverter.convert(
+                number, native_unit, UnitOfTemperature.CELSIUS
+            )
+            if not -40 <= round(celsius, 6) <= 215:
+                return None
+        return number
+
     @callback
     def _handle_update(self, data: dict[str, Any]) -> None:
         """Handle updated data from Torque."""
@@ -451,19 +482,7 @@ class TorqueSensor(RestoreEntity, SensorEntity):
         value = data[payload_key]
         old_value = self._attr_native_value
 
-        try:
-            converted_value = float(value)
-            if not math.isfinite(converted_value):
-                _LOGGER.debug(
-                    "Sensor '%s' received non-finite value '%s', setting to None",
-                    self._attr_name,
-                    value,
-                )
-                self._attr_native_value = None
-            else:
-                self._attr_native_value = converted_value
-        except (ValueError, TypeError):
-            self._attr_native_value = value
+        self._attr_native_value = self._parse_value(value)
 
         if old_value != self._attr_native_value:
             _LOGGER.debug(

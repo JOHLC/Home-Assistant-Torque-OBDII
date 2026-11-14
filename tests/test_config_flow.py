@@ -91,3 +91,25 @@ def test_upload_auth_options(user_input, expected_hash, error):
     if expected_hash:
         expected_options[CONF_UPLOAD_TOKEN_HASH] = expected_hash
     assert result["data"] == expected_options
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("user_input", [None, {"upload_token": "bad token"}])
+def test_upload_auth_form_only_offers_disable_when_enabled(enabled, user_input):
+    """Only show the disable field when the vehicle has a token hash."""
+    entry = SimpleNamespace(
+        options={CONF_UPLOAD_TOKEN_HASH: "previous-hash"} if enabled else {}
+    )
+    flow = TorqueConfigFlow.async_get_options_flow(entry)
+    flow.handler = "vehicle"
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_get_known_entry=lambda _: entry)
+    )
+
+    result = asyncio.run(flow.async_step_init(user_input))
+
+    assert "upload_token" in result["data_schema"].schema
+    assert ("disable_upload_auth" in result["data_schema"].schema) is enabled
+    assert result["description_placeholders"]["status"] == (
+        "enabled" if enabled else "disabled"
+    )

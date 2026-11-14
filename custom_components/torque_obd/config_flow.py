@@ -150,6 +150,7 @@ class TorqueOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Set, replace, or remove the vehicle upload token."""
         options = dict(self.config_entry.options)
+        auth_enabled = options.get(CONF_UPLOAD_TOKEN_HASH) is not None
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -170,16 +171,19 @@ class TorqueOptionsFlow(config_entries.OptionsFlow):
                     ).hexdigest()
                 return self.async_create_entry(title="", data=options)
 
+        fields: dict[vol.Optional, Any] = {
+            vol.Optional(CONF_UPLOAD_TOKEN): TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
+            ),
+        }
+        if auth_enabled:
+            fields[vol.Optional("disable_upload_auth", default=False)] = bool
+
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema({
-                vol.Optional(CONF_UPLOAD_TOKEN): TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                ),
-                vol.Optional("disable_upload_auth", default=False): bool,
-            }),
+            data_schema=vol.Schema(fields),
             description_placeholders={
-                "status": "enabled" if CONF_UPLOAD_TOKEN_HASH in options else "disabled",
+                "status": "enabled" if auth_enabled else "disabled",
             },
             errors=errors,
         )
