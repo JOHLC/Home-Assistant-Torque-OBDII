@@ -165,6 +165,8 @@ This integration is **receive-only**.
 - It cannot modify ECU data, program modules, change odometer values, or interact with CAN bus functions.
 - It only processes telemetry uploaded by the Torque application.
 
+For HTTPS uploads from Torque Pro, you can require an upload-only bearer token per vehicle. See [Optional Bearer Authentication](custom_components/torque_obd/README.md#optional-bearer-authentication) for setup.
+
 For remote access, follow standard Home Assistant security practices:
 
 - Use HTTPS for all remote access.

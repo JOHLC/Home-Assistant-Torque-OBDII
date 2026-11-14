@@ -25,6 +25,8 @@ SENSOR_DEFINITIONS_FILE: Final = "torque_sensor_definitions.yaml"
 
 # Configuration
 CONF_EMAIL: Final = "email"
+CONF_UPLOAD_TOKEN: Final = "upload_token"
+CONF_UPLOAD_TOKEN_HASH: Final = "upload_token_hash"
 CONF_VEHICLE_NAME: Final = "vehicle_name"
 
 # GPS PIDs used by the device tracker platform

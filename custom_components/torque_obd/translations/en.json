@@ -1,0 +1,38 @@
+{
+  "options": {
+    "step": {
+      "init": {
+        "title": "Torque upload authentication",
+        "description": "Bearer authentication is {status} for this vehicle. Enter a new upload token to enable authentication or replace the current token. A blank token field keeps the current setting.",
+        "data": {
+          "upload_token": "Upload bearer token",
+          "disable_upload_auth": "Disable bearer authentication"
+        }
+      }
+    },
+    "error": {
+      "invalid_upload_token": "Use a bearer token up to 1024 characters containing only letters, numbers, or the characters . _ ~ + / -. Optional padding with = is allowed at the end.",
+      "conflicting_upload_auth_options": "Enter a new token or choose to disable bearer authentication."
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Torque OBD-II",
+        "description": "Configure your vehicle for Torque OBD-II integration. The vehicle name will be used to create a unique API endpoint.",
+        "data": {
+          "vehicle_name": "Vehicle Name (e.g., 2025 Ford Escape)",
+          "email": "Email Address (optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_vehicle_name": "Invalid vehicle name. Use only letters, numbers, spaces, dashes, and underscores.",
+      "invalid_email": "Invalid email format. Please enter a valid email address.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This vehicle name is already configured."
+    }
+  }
+}

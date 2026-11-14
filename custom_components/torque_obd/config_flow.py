@@ -1,6 +1,7 @@
 """Config flow for Torque OBD-II integration."""
 from __future__ import annotations
 
+from hashlib import sha256
 import logging
 import re
 from typing import Any
@@ -8,11 +9,22 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
-from .const import CONF_EMAIL, CONF_VEHICLE_NAME, DOMAIN
+from .const import (
+    CONF_EMAIL,
+    CONF_UPLOAD_TOKEN,
+    CONF_UPLOAD_TOKEN_HASH,
+    CONF_VEHICLE_NAME,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +92,14 @@ class TorqueConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> TorqueOptionsFlow:
+        """Return the vehicle's upload authentication options flow."""
+        return TorqueOptionsFlow()
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -118,5 +138,52 @@ class TorqueConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=STEP_USER_DATA_SCHEMA,
+            errors=errors,
+        )
+
+
+class TorqueOptionsFlow(config_entries.OptionsFlow):
+    """Configure optional upload authentication for an existing vehicle."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Set, replace, or remove the vehicle upload token."""
+        options = dict(self.config_entry.options)
+        auth_enabled = options.get(CONF_UPLOAD_TOKEN_HASH) is not None
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            token = user_input.get(CONF_UPLOAD_TOKEN, "")
+            disable = user_input.get("disable_upload_auth", False)
+            if token and disable:
+                errors["base"] = "conflicting_upload_auth_options"
+            elif token and (
+                len(token) > 1024 or not re.fullmatch(r"[A-Za-z0-9._~+/-]+=*", token)
+            ):
+                errors[CONF_UPLOAD_TOKEN] = "invalid_upload_token"
+            else:
+                if disable:
+                    options.pop(CONF_UPLOAD_TOKEN_HASH, None)
+                elif token:
+                    options[CONF_UPLOAD_TOKEN_HASH] = sha256(
+                        token.encode("ascii")
+                    ).hexdigest()
+                return self.async_create_entry(title="", data=options)
+
+        fields: dict[vol.Optional, Any] = {
+            vol.Optional(CONF_UPLOAD_TOKEN): TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
+            ),
+        }
+        if auth_enabled:
+            fields[vol.Optional("disable_upload_auth", default=False)] = bool
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(fields),
+            description_placeholders={
+                "status": "enabled" if auth_enabled else "disabled",
+            },
             errors=errors,
         )

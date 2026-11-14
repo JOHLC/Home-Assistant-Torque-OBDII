@@ -121,10 +121,14 @@ def test_handle_update_sets_lat_lon() -> None:
     tracker = _make_tracker()
     tracker.async_write_ha_state = MagicMock()
 
+    assert tracker.latitude is None
+    assert tracker.longitude is None
+    assert tracker.location_accuracy == 0
     tracker._handle_update(SAMPLE_GPS_PAYLOAD)
 
-    assert tracker._attr_latitude == pytest.approx(42.123027155175805)
-    assert tracker._attr_longitude == pytest.approx(-77.92161114513874)
+    assert tracker.latitude == pytest.approx(42.123027155175805)
+    assert tracker.longitude == pytest.approx(-77.92161114513874)
+    assert tracker.location_accuracy == pytest.approx(5.0)
     tracker.async_write_ha_state.assert_called_once()
 
 
@@ -309,6 +313,23 @@ def test_async_added_to_hass_no_previous_state() -> None:
     assert tracker._attr_latitude is None
     assert tracker._attr_longitude is None
     tracker.async_write_ha_state.assert_not_called()
+
+
+def test_async_added_to_hass_uses_upload_that_created_tracker() -> None:
+    """Use a valid GPS upload even if it arrived before dispatcher subscription."""
+    tracker = _make_tracker()
+    tracker.hass.data = {DOMAIN: {ENTRY_ID: {"data": SAMPLE_GPS_PAYLOAD}}}
+    tracker.async_write_ha_state = MagicMock()
+    tracker.async_on_remove = MagicMock()
+
+    with (
+        patch.object(tracker, "async_get_last_state", new=AsyncMock(return_value=None)),
+        patch("custom_components.torque_obd.device_tracker.async_dispatcher_connect"),
+    ):
+        asyncio.run(tracker.async_added_to_hass())
+
+    assert tracker.latitude == pytest.approx(float(SAMPLE_GPS_PAYLOAD[GPS_LATITUDE_PID]))
+    assert tracker.longitude == pytest.approx(float(SAMPLE_GPS_PAYLOAD[GPS_LONGITUDE_PID]))
 
 
 def test_async_added_to_hass_subscribes_to_dispatcher() -> None:

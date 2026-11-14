@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- **Optional upload bearer authentication** for each vehicle using Torque Pro over HTTPS. See [#25](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/25).
 - **GPS Device Tracker**: A `device_tracker` entity is now automatically created
   for each vehicle the first time the Torque app sends GPS latitude **and**
   longitude values (`kff1006` / `kff1005`).  The entity uses
