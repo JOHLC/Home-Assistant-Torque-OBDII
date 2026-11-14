@@ -629,7 +629,7 @@ When asking for help, provide:
 
 ## Security Considerations
 
-**Remember**: Torque endpoints are **not authenticated** by design (Torque limitation).
+If Torque uploads receive **401 Unauthorized**, verify that the app uses HTTPS, **Send HTTPS: Bearer Token** is enabled, and the token matches the Home Assistant vehicle selected by the upload URL. Check that your reverse proxy forwards the `Authorization` header. See [Optional Bearer Authentication](custom_components/torque_obd/README.md#optional-bearer-authentication).
 
 **Security best practices**:
 1. ✅ Use only on trusted local networks for HTTP

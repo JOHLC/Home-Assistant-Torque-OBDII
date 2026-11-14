@@ -63,6 +63,7 @@ Code Standards & Expectations
 Integration-Specific Guidelines
 - The integration domain is `torque_obd` (not just `torque`)
 - Each vehicle configuration creates a unique API endpoint: `/api/torque-{vehicle_name}`
+- An optional per-vehicle bearer token protects GET and POST uploads. The options flow stores only a token hash, and the handler checks the current options without reloading routes.
 - The endpoint URL identifies the vehicle for every upload, including after a Home Assistant restart during an active Torque session. Torque may omit the vehicle profile name from later uploads. A phone shared by multiple vehicles requires a manual Web Upload URL change when switching vehicles.
 - Data is received via HTTP POST from the Torque app
 - Sensors are created dynamically based on received data
