@@ -46,7 +46,7 @@ This integration is **receive-only**. It cannot communicate back to the adapter,
 
 ### Torque App Setup
 
-Each vehicle gets its own unique API endpoint based on the vehicle name you configured.
+Each vehicle gets its own unique API endpoint based on the vehicle name you configured. If you use the same phone for more than one car, see [Multiple Vehicles](#multiple-vehicles) before setting the Web Upload URL.
 
 > **Home Assistant must be reachable from your phone** at the time Torque uploads data. Torque uploads periodically while it is running and connected. If Home Assistant is unreachable, Torque may queue items (see **Web Upload Status**), but uploads are best-effort and some data may be dropped.
 
@@ -330,12 +330,10 @@ The integration automatically maps these keys to human-readable sensor names.
 
 ### Multiple Vehicles
 
-You can add multiple vehicles by creating additional integration instances with different vehicle names and email addresses. Each vehicle will have:
-- Its own unique API endpoint
-- Its own set of sensors
-- Its own device in Home Assistant
+Add one Torque OBD-II integration entry in Home Assistant for each vehicle, using a distinct vehicle name. Each entry gets its own endpoint, sensors, and device. Email is optional. The integration uses the URL to identify the vehicle for every upload because Torque may send the profile name at the start of a logging session and omit it from later uploads. This also lets Home Assistant identify the vehicle after a restart during a trip.
 
-This allows you to monitor multiple vehicles simultaneously without any conflicts.
+- **One phone for multiple vehicles.** Torque's Web Upload URL is an app-wide setting. Before logging in a different car, switch to its Torque profile and change the URL under **Settings → Data Logging & Upload** to that car's endpoint. If you leave the previous URL in place, the new readings go to the previous car's entities.
+- **A separate phone for each vehicle.** Set each phone's Web Upload URL to its vehicle's endpoint. The integration is designed to keep the uploads separate by URL. This setup has yet to be tested by the maintainer.
 
 ## Credits
 
