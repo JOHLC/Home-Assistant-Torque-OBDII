@@ -1,10 +1,13 @@
 """The Torque OBD-II integration."""
 from __future__ import annotations
 
+from hashlib import sha256
+from hmac import compare_digest
+from http import HTTPStatus
 import logging
 from typing import Any
 
-from aiohttp import web
+from aiohttp import hdrs, web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -15,6 +18,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .const import (
     ATTRIBUTE_FIELDS,
     CONF_EMAIL,
+    CONF_UPLOAD_TOKEN_HASH,
     CONF_VEHICLE_NAME,
     DOMAIN,
     GPS_LATITUDE_PID,
@@ -348,8 +352,36 @@ class TorqueView(HomeAssistantView):
                 entry_data.get("vehicle_name", "Unknown"),
             )
 
+    @staticmethod
+    def _unauthorized_response() -> web.Response:
+        """Reject an upload without counting it as a Home Assistant login failure."""
+        return web.Response(
+            status=HTTPStatus.UNAUTHORIZED,
+            headers={hdrs.WWW_AUTHENTICATE: "Bearer"},
+        )
+
     async def _handle_request(self, request: web.Request) -> web.Response:
-        """Process the Torque request."""
+        """Process an upload for the vehicle assigned to this URL."""
+        entry = self.hass.config_entries.async_get_entry(self.entry_id)
+        if entry is None:
+            return web.Response(text="OK!")
+
+        token_hash = entry.options.get(CONF_UPLOAD_TOKEN_HASH)
+        if token_hash is not None:
+            authorization = request.headers.getall(hdrs.AUTHORIZATION, [])
+            header = authorization[0] if len(authorization) == 1 else ""
+            scheme, _, token = header.partition(" ")
+            token = token.lstrip(" ")
+            if (
+                scheme.lower() != "bearer"
+                or not token
+                or not token.isascii()
+                or not compare_digest(
+                    sha256(token.encode("ascii")).hexdigest(), token_hash
+                )
+            ):
+                return self._unauthorized_response()
+
         try:
             # Get data from query parameters (GET) or form data (POST)
             if request.method == "POST":
@@ -370,6 +402,10 @@ class TorqueView(HomeAssistantView):
                 )
                 return web.Response(text="OK!")
             
+            # POST body parsing can yield while the configured token changes.
+            if entry.options.get(CONF_UPLOAD_TOKEN_HASH) != token_hash:
+                return self._unauthorized_response()
+
             entry_data = self.hass.data[DOMAIN][self.entry_id]
             vehicle_name = entry_data.get("vehicle_name", "Unknown")
             _LOGGER.debug("Received %s request for '%s' with %d parameters", request.method, vehicle_name, len(data_dict))

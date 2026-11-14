@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from hashlib import sha256
+from types import SimpleNamespace
 
 import pytest
 
-from custom_components.torque_obd.config_flow import validate_input
-from custom_components.torque_obd.const import CONF_EMAIL, CONF_VEHICLE_NAME
+from custom_components.torque_obd.config_flow import TorqueConfigFlow, validate_input
+from custom_components.torque_obd.const import CONF_EMAIL, CONF_UPLOAD_TOKEN_HASH, CONF_VEHICLE_NAME
 
 
 def test_validate_input_accepts_stripped_vehicle_name() -> None:
@@ -54,3 +56,38 @@ def test_validate_input_rejects_invalid_email(email: str) -> None:
                 },
             )
         )
+
+
+@pytest.mark.parametrize(
+    ("user_input", "expected_hash", "error"),
+    [
+        ({}, "previous-hash", None),
+        ({"disable_upload_auth": True}, None, None),
+        ({"upload_token": "new-upload-token"}, sha256(b"new-upload-token").hexdigest(), None),
+        ({"upload_token": "bad token"}, None, "invalid_upload_token"),
+        ({"upload_token": "a" * 1025}, None, "invalid_upload_token"),
+        (
+            {"upload_token": "new-upload-token", "disable_upload_auth": True},
+            None,
+            "conflicting_upload_auth_options",
+        ),
+    ],
+)
+def test_upload_auth_options(user_input, expected_hash, error):
+    """The options flow preserves, rotates, or explicitly clears the token hash."""
+    entry = SimpleNamespace(options={CONF_UPLOAD_TOKEN_HASH: "previous-hash", "other": 42})
+    flow = TorqueConfigFlow.async_get_options_flow(entry)
+    flow.handler = "vehicle"
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_get_known_entry=lambda _: entry)
+    )
+    result = asyncio.run(flow.async_step_init(user_input))
+
+    if error:
+        assert error in result["errors"].values()
+        return
+
+    expected_options = {"other": 42}
+    if expected_hash:
+        expected_options[CONF_UPLOAD_TOKEN_HASH] = expected_hash
+    assert result["data"] == expected_options

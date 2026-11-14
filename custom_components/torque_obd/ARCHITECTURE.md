@@ -26,7 +26,7 @@ The integration is **receive-only**. It cannot communicate back to the adapter, 
 │                                     │
 │  ┌─────────────────────────────┐   │
 │  │ /api/torque-2025-ford-escape│   │ ◄─── Unique HTTP endpoint per vehicle
-│  │ /api/torque-2017-ford-fusion│   │      (unauthenticated; Torque limitation)
+│  │ /api/torque-2017-ford-fusion│   │      (optional bearer authentication)
 │  │  HTTP Views                  │   │
 │  └───────────┬──────────────────┘   │
 │              │                      │
@@ -171,7 +171,7 @@ Configuration is stored as a config entry with:
 
 ## Security Considerations
 
-- HTTP endpoints are **not authenticated** (Torque limitation)
+- Endpoints accept unauthenticated uploads by default. A vehicle with a configured bearer token rejects unmatched requests with HTTP 401 before ingesting telemetry.
 - Each vehicle has its own unique endpoint
 - Vehicle name must be unique to prevent endpoint conflicts
 - Recommended for use on trusted local networks only

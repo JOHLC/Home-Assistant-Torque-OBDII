@@ -239,9 +239,23 @@ cp custom_components/torque_obd/torque_sensor_definitions.yaml.example /config/t
 - **Distance & Time**: Trip distance, trip time
 - **Other**: Ambient air temperature, MAF air flow rate, timing advance, barometric pressure, fuel pressure, intake manifold pressure
 
+## Optional Bearer Authentication
+
+Torque Pro 1.12.46 and later can send a bearer token with HTTPS Web Upload. To require a token for an existing or newly added vehicle:
+
+1. Use an HTTPS Web Upload URL that Torque trusts. If you use a reverse proxy, make sure it forwards the `Authorization` header.
+2. Generate a long random token, such as a 64-character hexadecimal string from a password manager.
+3. In Home Assistant, open **Settings → Devices & Services → Torque OBD-II** and select **Configure** for the vehicle. Enter the token in **Upload bearer token** and save.
+4. In Torque, open **Settings → Data Logging & Upload**. Enable **Send HTTPS: Bearer Token** and paste the same token into **Set Bearer Token**. Enter the token itself, without the `Bearer` prefix.
+5. Confirm that the vehicle's **Last Torque Update** sensor advances after the next upload.
+
+The token grants access to the upload endpoint for that vehicle. Home Assistant stores a hash of the token. To rotate it, enter a replacement in **Configure** and update Torque. To remove the requirement, select **Disable bearer authentication** and save. These changes take effect immediately.
+
+Torque uses one Web Upload configuration per app. If you share one phone between cars, you can configure the same token on both vehicle entries and change only the URL when you switch cars.
+
 ## Security Considerations
 
-The integration creates vehicle-specific HTTP endpoints (e.g., `/api/torque-<vehicle-name>`) that **do not require authentication**. This is a Torque app limitation. To mitigate security risks:
+The integration accepts unauthenticated uploads by default. Enable [Optional Bearer Authentication](#optional-bearer-authentication) to require a matching token on a vehicle's endpoint. For network security:
 
 1. **Network Security**: Use HTTP only on a trusted private network. **Do not transmit telemetry, credentials, or GPS data over unencrypted HTTP on public or untrusted networks.**
 2. **HTTPS for Remote Access**: Use HTTPS with a publicly trusted certificate for any remote access.
