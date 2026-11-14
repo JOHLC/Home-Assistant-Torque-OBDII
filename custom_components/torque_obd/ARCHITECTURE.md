@@ -182,10 +182,10 @@ Configuration is stored as a config entry with:
 The integration supports multiple vehicles:
 1. Each vehicle configured with unique vehicle name
 2. Each vehicle gets its own unique HTTP endpoint (e.g., `/api/torque-2025-ford-escape`)
-3. Data is routed by endpoint URL, not by email (Torque does not reliably send email)
+3. The endpoint URL identifies the vehicle on every request. Torque may omit the profile name from telemetry uploads, so routing can resume after a Home Assistant restart without waiting for profile metadata.
 4. Each vehicle gets its own set of dynamically created sensors
 5. Devices grouped by vehicle name in UI
-6. No data conflicts between vehicles
+6. Each Torque installation sends to one configured URL. A shared phone requires a manual URL change before logging a different vehicle.
 
 ## State Management
 

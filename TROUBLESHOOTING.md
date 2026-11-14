@@ -370,20 +370,11 @@ Each vehicle gets its own endpoint. Verify in integration config:
 - Vehicle 1: `/api/torque-2025-ford-escape`
 - Vehicle 2: `/api/torque-2017-ford-fusion`
 
-#### Solution 3: Use Different Torque Profiles
+#### Solution 3: Check the Web Upload URL on Each Phone
 
-If using multiple vehicles with one phone:
-1. Create separate vehicle profiles in Torque
-2. Each profile should have its own web upload URL
-3. Switch profiles in Torque when changing vehicles
+If you share one phone between vehicles, switch to the current vehicle's Torque profile and manually change the app-wide **Web Upload URL** under **Settings → Data Logging & Upload** before logging. Torque keeps the same URL when you switch profiles. If the URL still points to the previous vehicle, its Home Assistant entities will receive the new readings.
 
-#### Solution 4: Verify Email Identifiers (Optional)
-
-While email is optional, it can help with identification:
-- Vehicle 1 email: `car1@example.com`
-- Vehicle 2 email: `car2@example.com`
-
-**Note**: Torque doesn't reliably send email, so the integration doesn't enforce it.
+If you have a dedicated phone for each vehicle, configure each phone with the corresponding Home Assistant endpoint. The integration routes each upload by URL. See the [multiple-vehicle setup guide](custom_components/torque_obd/README.md#multiple-vehicles).
 
 ## Configuration Validation
 

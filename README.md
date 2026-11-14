@@ -40,7 +40,7 @@ This integration creates sensors for every OBD-II PID that your car reports, ena
 - 📊 **205+ vehicle parameters** - Speed, RPM, fuel level, temperatures, and more
 - 🗺️ **GPS tracking** - Location, altitude, and bearing information
 - 🔌 **Easy setup** - Simple UI-based configuration
-- 📱 **Multiple vehicles** - Support for multiple cars with different email identifiers
+- 📱 **Multiple vehicles** - Separate upload URLs and Home Assistant entities for each vehicle
 - 🏠 **Home Assistant integration** - Works seamlessly with automations and dashboards
 
 ## Quick Start
@@ -81,7 +81,7 @@ This integration creates sensors for every OBD-II PID that your car reports, ena
 
 ### Torque App Configuration
 
-Each vehicle gets its own unique API endpoint based on the name you configured.
+Each vehicle gets its own unique API endpoint based on the name you configured. If you use one phone for multiple vehicles, change Torque's **Web Upload URL** to the current vehicle's endpoint before logging. Switching Torque profiles alone leaves the URL unchanged. See [Multiple Vehicles](custom_components/torque_obd/README.md#multiple-vehicles) for details.
 
 > **Home Assistant should be reachable from your phone** at the time Torque uploads data. Torque uploads periodically while it is running and connected. If the connection is unavailable, Torque may queue items (see **Web Upload Status**), but uploads are best-effort and some data may be dropped.
 
