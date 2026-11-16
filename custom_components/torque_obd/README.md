@@ -117,6 +117,12 @@ The integration **dynamically creates sensors** based on data received from Torq
 
 This means sensor names will automatically match what you see in the Torque app!
 
+When Torque uploads multiple values and names for the same PID, the integration
+creates a separate entity for each value and matches it to the corresponding
+name in Torque's upload order. The first keeps the normal PID identity; later
+values use distinct internal identities so they continue to update and restore
+independently after a Home Assistant restart.
+
 ### Entity ID Format
 
 All sensor entity IDs are prefixed with the vehicle name to ensure uniqueness and organization:

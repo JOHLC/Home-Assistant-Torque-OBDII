@@ -96,6 +96,7 @@ Notes for the Agent
 - Torque sends data via HTTP POST with form-encoded data
 - Email parameter is optional as Torque doesn't reliably send it
 - Standard PIDs may appear in short (`kd`) or zero-padded (`k0d`) form; treat both as the same sensor key
+- Torque Web Upload may repeat a PID or send name arrays for multiple custom sensors sharing one Mode/PID; preserve repeated values, match each to its indexed name, and normalize short/zero-padded PID aliases while preserving index suffixes so `kd`/`k0d` and `kd__1`/`k0d__1` share identities but base and indexed sensors remain distinct
 - Test changes manually with the Torque Pro Android app when possible
 - Reference Home Assistant developer docs in .github/home-assistant-developer-docs/ for integration patterns
 - HA's `async_get_or_create` **does** update `original_name` in the entity registry when an entity re-registers with a new name. Do NOT assume `original_name` is immutable after first registration — a code change that strips a prefix from `_attr_name` will cause HA to propagate that stripped name back into `original_name` on the next startup, even without an explicit `async_update_entity` call.

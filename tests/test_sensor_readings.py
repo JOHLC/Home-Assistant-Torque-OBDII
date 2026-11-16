@@ -37,3 +37,24 @@ def test_gps_bearings_have_distinct_names_and_preserve_identity(pid, expected):
     sensor = TorqueSensor(MagicMock(), "entry", "", "Car", pid, {"name": "GPS Bearing"})
     assert sensor.name == expected
     assert sensor.unique_id == f"torque_obd_entry_{pid}"
+
+
+def test_sensors_sharing_pid_update_from_indexed_readings_and_units():
+    payload = {
+        "k220104": "12.5",
+        "k220104__1": "48.0",
+    }
+    brake_pressure = TorqueSensor(
+        MagicMock(), "entry", "", "Car", "k220104", {"name": "Brake Pressure"}
+    )
+    abs_speed = TorqueSensor(
+        MagicMock(), "entry", "", "Car", "k220104__1", {"name": "ABS Speed"}
+    )
+    brake_pressure.async_write_ha_state = MagicMock()
+    abs_speed.async_write_ha_state = MagicMock()
+
+    brake_pressure._handle_update(payload)
+    abs_speed._handle_update(payload)
+
+    assert brake_pressure.native_value == 12.5
+    assert abs_speed.native_value == 48.0

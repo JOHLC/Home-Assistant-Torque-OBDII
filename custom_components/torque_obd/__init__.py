@@ -82,8 +82,17 @@ def _normalize_pid(pid: str) -> str:
     return f"k{hex_part}"
 
 
-def _extract_name_from_value(value: Any) -> str | None:
-    """Extract name from value, handling arrays and strings.
+def _normalize_sensor_key(key: str) -> str:
+    """Normalize a sensor PID while preserving its repeated-value index."""
+    base_key, separator, value_index = key.rpartition("__")
+    if not (separator and value_index.isdecimal() and base_key.startswith("k")):
+        return _normalize_pid(key)
+
+    return f"{_normalize_pid(base_key)}__{value_index}"
+
+
+def _extract_name_from_value(value: Any, index: int = 0) -> str | None:
+    """Extract indexed text from a string or array.
     
     Args:
         value: The value which may be a string or array of strings
@@ -91,11 +100,43 @@ def _extract_name_from_value(value: Any) -> str | None:
     Returns:
         The extracted name, or None if not available
     """
-    if isinstance(value, list) and value:
-        return value[0]
+    if isinstance(value, (list, tuple)) and len(value) > index:
+        return value[index]
     elif isinstance(value, str):
         return value
     return None
+
+
+def _request_data_to_dict(data: Any) -> dict[str, Any]:
+    """Convert request data to a dict without dropping repeated fields."""
+    getall = getattr(data, "getall", None)
+    if getall is None:
+        return dict(data)
+
+    data_dict: dict[str, Any] = {}
+    for key in data.keys():
+        if key in data_dict:
+            continue
+        values = getall(key)
+        data_dict[key] = values[0] if len(values) == 1 else values
+    return data_dict
+
+
+def _expand_duplicate_pid_values(data_dict: dict[str, Any]) -> dict[str, Any]:
+    """Give repeated readings for a PID distinct internal keys."""
+    expanded_data: dict[str, Any] = {}
+    for key, value in data_dict.items():
+        if (
+            key.startswith("k")
+            and isinstance(value, (list, tuple))
+            and len(value) > 1
+        ):
+            expanded_data[key] = value[0]
+            for index, reading in enumerate(value[1:], start=1):
+                expanded_data[f"{key}__{index}"] = reading
+        else:
+            expanded_data[key] = value
+    return expanded_data
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -129,10 +170,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         prefix = f"{DOMAIN}_{entry.entry_id}_"
         if entity_entry.unique_id.startswith(prefix):
             pid_key = entity_entry.unique_id[len(prefix):]
-            if pid_key != "api_endpoint": # Escludiamo l'endpoint diagnostico
-                existing_pids.add(pid_key)
-                # Tracciamo anche la versione normalizzata per sicurezza
-                existing_pids.add(_normalize_pid(pid_key))
+            if pid_key not in {"api_endpoint", "last_torque_update"}:
+                existing_pids.add(_normalize_sensor_key(pid_key))
     
     _LOGGER.info("Found %d pre-existing PIDs in entity registry for %s", len(existing_pids), vehicle_name)
     # -----------------------------------------------------------------
@@ -227,31 +266,29 @@ class TorqueView(HomeAssistantView):
                 pid = key[12:]  # Remove "userFullName" prefix
                 # Normalize the PID format
                 normalized_pid = _normalize_pid("k" + pid)
-                name_value = _extract_name_from_value(value)
-                if pid and name_value:
+                if pid and value:
                     if normalized_pid not in sensor_names:
                         sensor_names[normalized_pid] = {
-                            "full_name": name_value,
+                            "full_name": value,
                             "short_name": None
                         }
                     else:
-                        sensor_names[normalized_pid]["full_name"] = name_value
-                    _LOGGER.debug("Stored full name for PID %s: %s", normalized_pid, name_value)
+                        sensor_names[normalized_pid]["full_name"] = value
+                    _LOGGER.debug("Stored full name for PID %s", normalized_pid)
             elif key.startswith("userShortName"):
                 # Extract PID from userShortNameXXXX
                 pid = key[13:]  # Remove "userShortName" prefix
                 # Normalize the PID format
                 normalized_pid = _normalize_pid("k" + pid)
-                name_value = _extract_name_from_value(value)
-                if pid and name_value:
+                if pid and value:
                     if normalized_pid not in sensor_names:
                         sensor_names[normalized_pid] = {
                             "full_name": None,
-                            "short_name": name_value
+                            "short_name": value
                         }
                     else:
-                        sensor_names[normalized_pid]["short_name"] = name_value
-                    _LOGGER.debug("Stored short name for PID %s: %s", normalized_pid, name_value)
+                        sensor_names[normalized_pid]["short_name"] = value
+                    _LOGGER.debug("Stored short name for PID %s", normalized_pid)
         
         new_sensors = []
         
@@ -262,10 +299,16 @@ class TorqueView(HomeAssistantView):
                 continue
             
             # Normalize the PID format for consistent lookups
-            normalized_key = _normalize_pid(key)
+            pid_key, separator, value_index = key.rpartition("__")
+            if not (separator and value_index.isdecimal()):
+                pid_key = key
+                value_index = ""
+            normalized_key = _normalize_pid(pid_key)
+            normalized_sensor_key = _normalize_sensor_key(key)
             
-            # Skip if sensor already exists (check both original and normalized)
-            if key in added_sensors or normalized_key in added_sensors:
+            # Short and zero-padded PID aliases share one identity, while
+            # repeated values remain distinct through their indexed suffix.
+            if normalized_sensor_key in added_sensors:
                 continue
             
             # Skip metadata fields
@@ -284,11 +327,15 @@ class TorqueView(HomeAssistantView):
             # Determine sensor name from payload or definitions
             sensor_name = None
             if normalized_key in sensor_names:
-                # Use full name if available, otherwise short name
-                if sensor_names[normalized_key].get("full_name"):
-                    sensor_name = sensor_names[normalized_key]["full_name"]
-                elif sensor_names[normalized_key].get("short_name"):
-                    sensor_name = sensor_names[normalized_key]["short_name"]
+                name_index = int(value_index) if value_index else 0
+                sensor_name = (
+                    _extract_name_from_value(
+                        sensor_names[normalized_key].get("full_name"), name_index
+                    )
+                    or _extract_name_from_value(
+                        sensor_names[normalized_key].get("short_name"), name_index
+                    )
+                )
             
             # Check if we have a definition for this sensor (using normalized key)
             if normalized_key in sensor_definitions:
@@ -300,14 +347,14 @@ class TorqueView(HomeAssistantView):
             else:
                 # Create a generic definition for undefined PIDs
                 definition = {
-                    "name": sensor_name if sensor_name else f"PID {key}",
+                    "name": sensor_name if sensor_name else f"PID {pid_key}",
                     "unit": None,
                     "icon": "mdi:car-info",
                     "device_class": None,
                     "state_class": None,
                 }
                 _LOGGER.debug("Creating generic sensor for undefined PID '%s' (original: '%s') with name: %s", normalized_key, key, definition["name"])
-            
+
             # Use original key for data lookup - data_dict contains non-normalized PIDs from Torque
             sensor = TorqueSensor(
                 self.hass,
@@ -318,9 +365,9 @@ class TorqueView(HomeAssistantView):
                 definition,
             )
             new_sensors.append(sensor)
-            # Track both keys to prevent duplicate sensors (e.g., if both "kd" and "k0d" appear)
-            added_sensors.add(key)
-            added_sensors.add(normalized_key)
+            # Keep the first repeated value under its original PID identity for
+            # compatibility; later values use indexed identities.
+            added_sensors.add(normalized_sensor_key)
             _LOGGER.debug("Creating new sensor '%s' for PID '%s' (normalized: '%s')", definition["name"], key, normalized_key)
         
         # Add the new sensors if any
@@ -390,7 +437,7 @@ class TorqueView(HomeAssistantView):
                 data = request.query
 
             # Convert to regular dict for easier processing
-            data_dict = dict(data)
+            data_dict = _expand_duplicate_pid_values(_request_data_to_dict(data))
             
             # Check if entry still exists in hass.data (it may have been unloaded)
             if self.entry_id not in self.hass.data.get(DOMAIN, {}):

@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
+from multidict import MultiDict
 
-from custom_components.torque_obd import _extract_name_from_value, _normalize_pid
-from custom_components.torque_obd.const import DOMAIN, SENSOR_DEFINITIONS
+from custom_components.torque_obd import (
+    TorqueView,
+    _normalize_sensor_key,
+    _expand_duplicate_pid_values,
+    _extract_name_from_value,
+    _normalize_pid,
+    _request_data_to_dict,
+    async_setup_entry as async_setup_integration_entry,
+)
+from custom_components.torque_obd.const import (
+    CONF_VEHICLE_NAME,
+    DOMAIN,
+    SENSOR_DEFINITIONS,
+)
 from custom_components.torque_obd.sensor import (
     _build_lookup_keys,
     _build_sensor_definition,
@@ -33,9 +48,29 @@ def test_normalize_pid(pid: str, expected: str) -> None:
 @pytest.mark.parametrize(
     ("key", "expected"),
     [
+        ("kd", "k0d"),
+        ("k0d", "k0d"),
+        ("kd__1", "k0d__1"),
+        ("k0d__1", "k0d__1"),
+        ("kd__2", "k0d__2"),
+        ("k220104__1", "k220104__1"),
+        ("kd__other", "kd__other"),
+    ],
+)
+def test_normalize_sensor_key_preserves_indexed_identity(
+    key: str, expected: str
+) -> None:
+    """PID aliases normalize without merging distinct repeated values."""
+    assert _normalize_sensor_key(key) == expected
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
         ("kd", ("kd", "k0d")),
         ("k0d", ("k0d", "kd")),
         ("k221e1c", ("k221e1c",)),
+        ("k221e1c__1", ("k221e1c__1",)),
     ],
 )
 def test_build_lookup_keys(key: str, expected: tuple[str, ...]) -> None:
@@ -46,8 +81,124 @@ def test_build_lookup_keys(key: str, expected: tuple[str, ...]) -> None:
 def test_extract_name_from_value_prefers_first_list_entry() -> None:
     """Name extraction should support both arrays and strings."""
     assert _extract_name_from_value(["Speed", "Vehicle Speed"]) == "Speed"
+    assert _extract_name_from_value(["Speed", "Vehicle Speed"], 1) == "Vehicle Speed"
     assert _extract_name_from_value("Boost") == "Boost"
     assert _extract_name_from_value([]) is None
+
+
+def test_repeated_torque_pid_fields_are_preserved_and_expanded() -> None:
+    """Repeated form fields become separate readings while other fields stay intact."""
+    request_data = MultiDict(
+        [
+            ("k220104", "12.5"),
+            ("k220104", "48.0"),
+            ("userFullName220104", "Brake Pressure"),
+            ("userFullName220104", "ABS Speed"),
+        ]
+    )
+
+    data = _expand_duplicate_pid_values(_request_data_to_dict(request_data))
+
+    assert data == {
+        "k220104": "12.5",
+        "k220104__1": "48.0",
+        "userFullName220104": ["Brake Pressure", "ABS Speed"],
+    }
+
+
+def test_duplicate_pid_sensors_use_matching_torque_names() -> None:
+    """Sensors sharing one PID are created separately with their indexed names."""
+    created_sensors = []
+
+    class FakeSensor:
+        def __init__(self, _hass, _entry_id, _email, _vehicle, key, definition):
+            self.key = key
+            self.name = definition["name"]
+
+    entry_data = {
+        "added_sensors": set(),
+        "async_add_entities": lambda entities, _update: created_sensors.extend(
+            entities
+        ),
+        "vehicle_name": "Test Vehicle",
+    }
+    hass = SimpleNamespace(
+        data={DOMAIN: {"entry": entry_data, "sensor_definitions": {}}}
+    )
+    view = TorqueView(hass, "entry", "/api/torque-test")
+    payload = _expand_duplicate_pid_values(
+        {
+            "userFullNamed": ["Cruise Speed", "Secondary Speed"],
+            "kd": ["12.5", "48.0", "60.0"],
+        }
+    )
+
+    with patch("custom_components.torque_obd.sensor.TorqueSensor", FakeSensor):
+        asyncio.run(view._create_sensors_for_new_data(payload))
+        asyncio.run(
+            view._create_sensors_for_new_data(
+                {"k0d": "15.0", "k0d__1": "49.0", "k0d__2": "61.0"}
+            )
+        )
+
+    assert [(sensor.key, sensor.name) for sensor in created_sensors] == [
+        ("kd", "Cruise Speed"),
+        ("kd__1", "Secondary Speed"),
+        ("kd__2", "PID kd"),
+    ]
+
+
+def test_registry_restoration_tracks_indexed_pid_aliases() -> None:
+    """Restored indexed entities suppress duplicate short or padded PID uploads."""
+    registry_entries = [
+        SimpleNamespace(unique_id=f"{DOMAIN}_entry_{key}")
+        for key in ("kd", "kd__1", "kd__2")
+    ]
+    registry = MagicMock()
+    hass = SimpleNamespace(
+        data={DOMAIN: {"sensor_definitions": {}}},
+        http=SimpleNamespace(register_view=MagicMock()),
+        config_entries=SimpleNamespace(async_forward_entry_setups=MagicMock()),
+    )
+    entry = SimpleNamespace(
+        data={CONF_VEHICLE_NAME: "Test Vehicle"},
+        entry_id="entry",
+    )
+    created_sensors = []
+
+    async def _forward_entry_setups(_entry, _platforms) -> None:
+        return None
+
+    hass.config_entries.async_forward_entry_setups = _forward_entry_setups
+    with (
+        patch("homeassistant.helpers.entity_registry.async_get", return_value=registry),
+        patch(
+            "homeassistant.helpers.entity_registry.async_entries_for_config_entry",
+            return_value=registry_entries,
+        ),
+    ):
+        asyncio.run(async_setup_integration_entry(hass, entry))
+
+    entry_data = hass.data[DOMAIN]["entry"]
+    assert entry_data["added_sensors"] == {"k0d", "k0d__1", "k0d__2"}
+
+    entry_data["async_add_entities"] = lambda entities, _update: created_sensors.extend(
+        entities
+    )
+    view = TorqueView(hass, "entry", "/api/torque-test")
+
+    class FakeSensor:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+    with patch("custom_components.torque_obd.sensor.TorqueSensor", FakeSensor):
+        asyncio.run(
+            view._create_sensors_for_new_data(
+                {"k0d": "12.5", "k0d__1": "48.0", "k0d__2": "60.0"}
+            )
+        )
+
+    assert created_sensors == []
 
 
 def test_build_sensor_definition_uses_restored_name_without_vehicle_prefix() -> None:
