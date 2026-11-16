@@ -21,6 +21,9 @@
   Closes [#19](https://github.com/JOHLC/Home-Assistant-Torque-OBDII/issues/19).
 
 ### Fixed
+- **Multiple Torque sensors sharing one PID**: Preserve repeated Web Upload
+  fields and create independently named, updating, restorable entities for each
+  reading instead of collapsing them into a single sensor.
 - **Duplicate Device Name in Entity IDs (complete fix)**: Entity IDs such as
   `sensor.2025_ford_escape_2025_ford_escape_fuel_level` are now automatically
   corrected to `sensor.2025_ford_escape_fuel_level` on the very next Home

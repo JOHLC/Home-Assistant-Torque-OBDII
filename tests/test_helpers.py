@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
+from multidict import MultiDict
 
-from custom_components.torque_obd import _extract_name_from_value, _normalize_pid
+from custom_components.torque_obd import (
+    TorqueView,
+    _expand_duplicate_pid_values,
+    _extract_name_from_value,
+    _normalize_pid,
+    _request_data_to_dict,
+)
 from custom_components.torque_obd.const import DOMAIN, SENSOR_DEFINITIONS
 from custom_components.torque_obd.sensor import (
     _build_lookup_keys,
@@ -36,6 +45,7 @@ def test_normalize_pid(pid: str, expected: str) -> None:
         ("kd", ("kd", "k0d")),
         ("k0d", ("k0d", "kd")),
         ("k221e1c", ("k221e1c",)),
+        ("k221e1c__1", ("k221e1c__1",)),
     ],
 )
 def test_build_lookup_keys(key: str, expected: tuple[str, ...]) -> None:
@@ -46,8 +56,65 @@ def test_build_lookup_keys(key: str, expected: tuple[str, ...]) -> None:
 def test_extract_name_from_value_prefers_first_list_entry() -> None:
     """Name extraction should support both arrays and strings."""
     assert _extract_name_from_value(["Speed", "Vehicle Speed"]) == "Speed"
+    assert _extract_name_from_value(["Speed", "Vehicle Speed"], 1) == "Vehicle Speed"
     assert _extract_name_from_value("Boost") == "Boost"
     assert _extract_name_from_value([]) is None
+
+
+def test_repeated_torque_pid_fields_are_preserved_and_expanded() -> None:
+    """Repeated form fields become separate readings while other fields stay intact."""
+    request_data = MultiDict(
+        [
+            ("k220104", "12.5"),
+            ("k220104", "48.0"),
+            ("userFullName220104", "Brake Pressure"),
+            ("userFullName220104", "ABS Speed"),
+        ]
+    )
+
+    data = _expand_duplicate_pid_values(_request_data_to_dict(request_data))
+
+    assert data == {
+        "k220104": "12.5",
+        "k220104__1": "48.0",
+        "userFullName220104": ["Brake Pressure", "ABS Speed"],
+    }
+
+
+def test_duplicate_pid_sensors_use_matching_torque_names() -> None:
+    """Sensors sharing one PID are created separately with their indexed names."""
+    created_sensors = []
+
+    class FakeSensor:
+        def __init__(self, _hass, _entry_id, _email, _vehicle, key, definition):
+            self.key = key
+            self.name = definition["name"]
+
+    entry_data = {
+        "added_sensors": set(),
+        "async_add_entities": lambda entities, _update: created_sensors.extend(
+            entities
+        ),
+        "vehicle_name": "Test Vehicle",
+    }
+    hass = SimpleNamespace(
+        data={DOMAIN: {"entry": entry_data, "sensor_definitions": {}}}
+    )
+    view = TorqueView(hass, "entry", "/api/torque-test")
+    payload = _expand_duplicate_pid_values(
+        {
+            "userFullName220104": ["Brake Pressure", "ABS Speed"],
+            "k220104": ["12.5", "48.0"],
+        }
+    )
+
+    with patch("custom_components.torque_obd.sensor.TorqueSensor", FakeSensor):
+        asyncio.run(view._create_sensors_for_new_data(payload))
+
+    assert [(sensor.key, sensor.name) for sensor in created_sensors] == [
+        ("k220104", "Brake Pressure"),
+        ("k220104__1", "ABS Speed"),
+    ]
 
 
 def test_build_sensor_definition_uses_restored_name_without_vehicle_prefix() -> None:

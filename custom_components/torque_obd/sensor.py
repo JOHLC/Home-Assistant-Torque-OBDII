@@ -34,14 +34,22 @@ _STANDARD_TEMPERATURE_PIDS = {"k05", "k0f", "k46"}
 
 def _build_lookup_keys(key: str) -> tuple[str, ...]:
     """Build supported payload keys for a sensor."""
-    normalized_key = _normalize_pid(key)
+    base_key, separator, value_index = key.rpartition("__")
+    if not (separator and value_index.isdecimal()):
+        base_key = key
+        suffix = ""
+    else:
+        suffix = f"__{value_index}"
+
+    normalized_key = _normalize_pid(base_key)
     lookup_keys = [key]
 
-    if normalized_key not in lookup_keys:
-        lookup_keys.append(normalized_key)
+    normalized_lookup_key = f"{normalized_key}{suffix}"
+    if normalized_lookup_key not in lookup_keys:
+        lookup_keys.append(normalized_lookup_key)
 
     if normalized_key.startswith("k0") and len(normalized_key) == 3:
-        short_key = f"k{normalized_key[2:]}"
+        short_key = f"k{normalized_key[2:]}{suffix}"
         if short_key not in lookup_keys:
             lookup_keys.append(short_key)
 
@@ -55,7 +63,7 @@ def _build_sensor_definition(
     restored_name: str | None = None,
 ) -> dict[str, Any]:
     """Build a sensor definition for a restored or dynamic sensor."""
-    normalized_key = _normalize_pid(key)
+    normalized_key = _normalize_pid(_base_pid_key(key))
     definition = sensor_definitions.get(normalized_key, {}).copy()
 
     if not definition:
@@ -75,6 +83,14 @@ def _build_sensor_definition(
         definition["name"] = restored_name
 
     return definition
+
+
+def _base_pid_key(key: str) -> str:
+    """Return a PID key without its repeated-value index suffix."""
+    base_key, separator, value_index = key.rpartition("__")
+    if separator and value_index.isdecimal() and base_key.startswith("k"):
+        return base_key
+    return key
 
 
 def _migrate_entity_registry_names(
@@ -263,13 +279,16 @@ async def async_setup_entry(
             continue
 
         key = unique_id.removeprefix(unique_id_prefix)
-        normalized_key = _normalize_pid(key)
+        normalized_key = _normalize_pid(_base_pid_key(key))
+        is_duplicate_value = _base_pid_key(key) != key
 
         if registry_entry.disabled_by is not None:
-            disabled_sensor_keys.update({key, normalized_key})
+            disabled_sensor_keys.add(key)
+            if not is_duplicate_value:
+                disabled_sensor_keys.add(normalized_key)
             continue
 
-        if normalized_key in restored_normalized_keys:
+        if not is_duplicate_value and normalized_key in restored_normalized_keys:
             added_sensors.update({key, normalized_key})
             continue
 
@@ -290,8 +309,10 @@ async def async_setup_entry(
                 definition,
             )
         )
-        added_sensors.update({key, normalized_key})
-        restored_normalized_keys.add(normalized_key)
+        added_sensors.add(key)
+        if not is_duplicate_value:
+            added_sensors.add(normalized_key)
+            restored_normalized_keys.add(normalized_key)
         restored_sensor_count += 1
         _LOGGER.debug(
             "Restoring sensor '%s' (PID: %s, normalized: %s) for vehicle '%s'",
@@ -464,7 +485,7 @@ class TorqueSensor(RestoreSensor):
             return number
         if source_unit in TemperatureConverter.VALID_UNITS:
             number = TemperatureConverter.convert(number, source_unit, native_unit)
-        if _normalize_pid(self._key) in _STANDARD_TEMPERATURE_PIDS:
+        if _normalize_pid(_base_pid_key(self._key)) in _STANDARD_TEMPERATURE_PIDS:
             celsius = TemperatureConverter.convert(
                 number, native_unit, UnitOfTemperature.CELSIUS
             )
