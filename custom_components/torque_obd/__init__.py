@@ -82,10 +82,13 @@ def _normalize_pid(pid: str) -> str:
     return f"k{hex_part}"
 
 
-def _is_duplicate_pid_key(pid: str) -> bool:
-    """Return whether a sensor key has a repeated-value index suffix."""
-    base, separator, index = pid.rpartition("__")
-    return bool(separator and base.startswith("k") and index.isdecimal())
+def _normalize_sensor_key(key: str) -> str:
+    """Normalize a sensor PID while preserving its repeated-value index."""
+    base_key, separator, value_index = key.rpartition("__")
+    if not (separator and value_index.isdecimal() and base_key.startswith("k")):
+        return _normalize_pid(key)
+
+    return f"{_normalize_pid(base_key)}__{value_index}"
 
 
 def _extract_name_from_value(value: Any, index: int = 0) -> str | None:
@@ -168,9 +171,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if entity_entry.unique_id.startswith(prefix):
             pid_key = entity_entry.unique_id[len(prefix):]
             if pid_key not in {"api_endpoint", "last_torque_update"}:
-                existing_pids.add(pid_key)
-                if not _is_duplicate_pid_key(pid_key):
-                    existing_pids.add(_normalize_pid(pid_key))
+                existing_pids.add(_normalize_sensor_key(pid_key))
     
     _LOGGER.info("Found %d pre-existing PIDs in entity registry for %s", len(existing_pids), vehicle_name)
     # -----------------------------------------------------------------
@@ -303,12 +304,11 @@ class TorqueView(HomeAssistantView):
                 pid_key = key
                 value_index = ""
             normalized_key = _normalize_pid(pid_key)
+            normalized_sensor_key = _normalize_sensor_key(key)
             
-            # Skip if sensor already exists (check both original and normalized)
-            is_duplicate_value = bool(value_index)
-            if key in added_sensors or (
-                not is_duplicate_value and normalized_key in added_sensors
-            ):
+            # Short and zero-padded PID aliases share one identity, while
+            # repeated values remain distinct through their indexed suffix.
+            if normalized_sensor_key in added_sensors:
                 continue
             
             # Skip metadata fields
@@ -367,9 +367,7 @@ class TorqueView(HomeAssistantView):
             new_sensors.append(sensor)
             # Keep the first repeated value under its original PID identity for
             # compatibility; later values use indexed identities.
-            added_sensors.add(key)
-            if not is_duplicate_value:
-                added_sensors.add(normalized_key)
+            added_sensors.add(normalized_sensor_key)
             _LOGGER.debug("Creating new sensor '%s' for PID '%s' (normalized: '%s')", definition["name"], key, normalized_key)
         
         # Add the new sensors if any
